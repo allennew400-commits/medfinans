@@ -1,52 +1,54 @@
-import { initHeader } from "./auth.js";
-import { supabase } from "./supabase.js";
-import { sortClients, escapeHtml } from "./utils.js";
+import { supabase } from './supabase.js';
+import { sortClients } from './utils.js';
 
-await initHeader("clients.html");
+let allClients = [];
+let currentKind = 'all';
 
-const { data, error } = await supabase.from("clients").select("*");
-if (error) alert(error.message);
-
-let all = sortClients(data || []);
-let kind = "all", q = "";
-
-function render() {
-  const items = all.filter(c => {
-    if (kind !== "all" && c.kind !== kind) return false;
-    if (!q) return true;
-    const s = q.toLowerCase();
-    return (c.short_name || "").toLowerCase().includes(s)
-      || (c.full_name || "").toLowerCase().includes(s)
-      || (c.inn || "").includes(s)
-      || (c.legal_address || "").toLowerCase().includes(s)
-      || (c.actual_address || "").toLowerCase().includes(s);
-  });
-  
-  document.getElementById("list").innerHTML = items.length
-    ? items.map((c, i) => `
-      <div class="row">
-        <span class="num">${i + 1}</span>
-        <div style="flex:1">
-          <a href="client.html?id=${c.id}" style="color:var(--primary); text-decoration:none; font-size:16px; font-weight:600;">${escapeHtml(c.short_name)}</a>
-          <div style="color:var(--text-muted); font-size:14px; margin-top:4px;">${c.kind} · ИНН ${escapeHtml(c.inn || "—")}</div>
-        </div>
-        <a href="client.html?id=${c.id}" class="btn secondary small">Открыть</a>
-      </div>`).join("")
-    : `<p style="color:var(--text-muted); text-align:center; padding:20px;">Клиентов не найдено</p>`;
+export async function initClients() {
+    const { data, error } = await supabase.from('clients').select('*');
+    if (error) { console.error(error); return; }
+    allClients = sortClients(data);
+    renderTable();
+    setupEvents();
 }
 
-render();
+function renderTable() {
+    const search = document.getElementById('searchInput').value.toLowerCase();
+    const tbody = document.getElementById('clientsTableBody');
 
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-  document.querySelectorAll(".tab").forEach(x => {
-    x.classList.remove("active");
-    x.style.background = "transparent";
-    x.style.color = "var(--text-muted)";
-  });
-  t.classList.add("active");
-  t.style.background = "var(--primary)";
-  t.style.color = "white";
-  kind = t.dataset.kind; render();
-});
+    let filtered = allClients.filter(c => {
+        const matchesKind = currentKind === 'all' || c.kind === currentKind;
+        const matchesSearch = c.short_name.toLowerCase().includes(search) ||
+            (c.inn && c.inn.includes(search)) ||
+            (c.legal_address && c.legal_address.toLowerCase().includes(search));
+        return matchesKind && matchesSearch;
+    });
 
-document.getElementById("search").oninput = e => { q = e.target.value; render(); };
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Ничего не найдено</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = filtered.map((c, i) => `
+        <tr>
+            <td>${i + 1}</td>
+            <td><b>${c.short_name}</b></td>
+            <td><span class="badge badge-info">${c.kind || '-'}</span></td>
+            <td>${c.inn || '-'}</td>
+            <td>${c.director_name || '-'}</td>
+            <td><a href="client.html?id=${c.id}" class="btn btn-outline btn-sm">Открыть</a></td>
+        </tr>
+    `).join('');
+}
+
+function setupEvents() {
+    document.getElementById('searchInput').addEventListener('input', renderTable);
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            currentKind = e.target.dataset.kind;
+            renderTable();
+        });
+    });
+}
