@@ -1,5 +1,5 @@
-export const SUPABASE_URL = "https://mamvepuotqbefbdbnowf.supabase.co";
-export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hbXZlcHVvdHFiZWZiZGJub3dmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzMTg3MDgsImV4cCI6MjExMDg5NDcwOH0.on-hxSMJ-b1xtHD7Lm2OkfwTCU0bfADvUGi1saxc5m4";
+export const SUPABASE_URL = "https://tftbewyknnxevbxnhydo.supabase.co";
+export const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRmdGJld3lrbm54ZXZieG5oeWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTUzNDM0MDMsImV4cCI6MjExMDkxOTQwM30.3xJ2exBvYlVZ7HWp8ZfWLKP6a2DlwmAlkhYHEDiph1c";
 
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
