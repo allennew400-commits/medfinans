@@ -86,4 +86,18 @@ function setupEvents() {
         currentDate.setMonth(currentDate.getMonth() + 1);
         renderCalendar();
     });
+    const holidays = [
+    '01-01', '01-02', '01-03', '01-04', '01-05', '01-06', '01-07', '01-08',
+    '02-23', '03-08', '05-01', '05-09', '06-12', '11-04'
+    ];
+    
+    function isHoliday(dateStr) {
+        const md = dateStr.slice(5); // MM-DD
+        return holidays.includes(md);
+    }
+    
+    function isWeekend(dateStr) {
+        const d = new Date(dateStr);
+        return d.getDay() === 0 || d.getDay() === 6;
+    }
 }
