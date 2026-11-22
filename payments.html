@@ -1,16 +1,138 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Обязательные платежи — МЕДФИНАНС ГРУПП</title>
-<link rel="stylesheet" href="assets/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Обязательные платежи - МЕДФИНАНС ГРУПП</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="manifest" href="assets/manifest.json">
 </head>
 <body>
-<div class="container">
-  <h1 class="page-title">Обязательные платежи</h1>
-  <div class="card"><div id="clients"></div></div>
-</div>
-<script type="module" src="assets/js/payments.js"></script>
+    <div class="mobile-header">
+        <button class="burger-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">Меню</button>
+        <div class="logo-container"><img src="assets/logo.png" alt=""> МедФинанс</div>
+    </div>
+    <aside class="sidebar">
+        <div class="logo-container"><img src="assets/logo.png" alt="Логотип"><span>МЕДФИНАНС</span></div>
+        <ul class="nav-links">
+            <li><a href="app.html">Главная</a></li>
+            <li><a href="clients.html">Клиенты</a></li>
+            <li><a href="tasks.html">Задачи</a></li>
+            <li><a href="passwords.html">Пароли</a></li>
+            <li><a href="salary.html">Зарплаты</a></li>
+            <li><a href="reports.html">Отчетность</a></li>
+            <li><a href="payments.html" class="active">Платежи</a></li>
+            <li><a href="custom.html">Произвольное</a></li>
+            <li><a href="calendar.html">Календарь</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <h1>Обязательные платежи</h1>
+            <div class="user-info" id="user-header"></div>
+        </header>
+
+        <div style="margin-bottom: 20px;">
+            <button class="btn btn-primary" id="addPaymentBtn">Добавить</button>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Организация</th>
+                        <th>Название платежа</th>
+                        <th>Дата</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="paymentsTableBody">
+                    <tr><td colspan="5" style="text-align: center;">Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="paymentModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="document.getElementById('paymentModal').classList.remove('active')">&times;</button>
+            <h3>Новый платеж</h3>
+            <div class="form-group">
+                <label>Организация</label>
+                <select id="paymentClient"></select>
+            </div>
+            <div class="form-group">
+                <label>Название платежа</label>
+                <input type="text" id="paymentTitle" required>
+            </div>
+            <div class="form-group">
+                <label>Дата платежа</label>
+                <input type="date" id="paymentDate" required>
+            </div>
+            <button class="btn btn-primary" id="createPaymentBtn">Создать</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from './assets/js/auth.js';
+        import { supabase } from './assets/js/supabase.js';
+        import { formatDate, sortClients } from './assets/js/utils.js';
+
+        let currentUser = null;
+        let clients = [];
+
+        async function init() {
+            currentUser = await checkAuth();
+            if (!currentUser) return;
+            const { data } = await supabase.from('clients').select('id, short_name');
+            clients = sortClients(data || []);
+            const select = document.getElementById('paymentClient');
+            select.innerHTML = clients.map(c => `<option value="${c.id}">${c.short_name}</option>`).join('');
+            loadPayments();
+        }
+
+        async function loadPayments() {
+            const { data: payments } = await supabase.from('payments').select('*, clients(short_name)').order('pay_date', { ascending: false });
+            const tbody = document.getElementById('paymentsTableBody');
+            if (!payments || payments.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Нет платежей</td></tr>';
+                return;
+            }
+            tbody.innerHTML = payments.map(p => `
+                <tr>
+                    <td>${p.clients?.short_name || '-'}</td>
+                    <td>${p.title}</td>
+                    <td>${formatDate(p.pay_date)}</td>
+                    <td><span class="badge ${p.done ? 'badge-success' : 'badge-pending'}">${p.done ? 'Выполнено' : 'Ожидает'}</span></td>
+                    <td>${!p.done ? `<button class="btn btn-success btn-sm done-pay-btn" data-id="${p.id}">Выполнено</button>` : ''}</td>
+                </tr>
+            `).join('');
+            document.querySelectorAll('.done-pay-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    if (!confirm('Подтвердить выполнение платежа?')) return;
+                    await supabase.from('payments').update({ done: true }).eq('id', e.target.dataset.id);
+                    loadPayments();
+                });
+            });
+        }
+
+        document.getElementById('addPaymentBtn').addEventListener('click', () => {
+            document.getElementById('paymentModal').classList.add('active');
+        });
+
+        document.getElementById('createPaymentBtn').addEventListener('click', async () => {
+            const clientId = document.getElementById('paymentClient').value;
+            const title = document.getElementById('paymentTitle').value;
+            const date = document.getElementById('paymentDate').value;
+            if (!title || !date) return alert('Заполните название и дату');
+            await supabase.from('payments').insert([{ client_id: clientId, title, pay_date: date, created_by: currentUser.id }]);
+            document.getElementById('paymentModal').classList.remove('active');
+            loadPayments();
+        });
+
+        init();
+    </script>
 </body>
 </html>
