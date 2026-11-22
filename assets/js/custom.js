@@ -1,78 +1,71 @@
-import { initHeader } from "./auth.js";
-import { supabase } from "./supabase.js";
-import { sortClients, escapeHtml, fmtDate, toast } from "./utils.js";
+import { supabase } from './supabase.js';
+import { formatDate, sortClients } from './utils.js';
 
-const ctx = await initHeader("custom.html");
+let currentUser = null;
+let clients = [];
 
-const { data: cls } = await supabase.from("clients").select("id,short_name,kind");
-const clients = sortClients(cls||[]);
-document.getElementById("clientChecks").innerHTML = clients.map(c=>`
-  <label style="display:block"><input type="checkbox" data-cid="${c.id}"> ${escapeHtml(c.short_name)}</label>
-`).join("");
-document.getElementById("selAll").onchange = e=>{
-  document.querySelectorAll("[data-cid]").forEach(i=>i.checked=e.target.checked);
-};
-
-async function render(){
-  const { data: lists } = await supabase.from("custom_lists").select("*").order("created_at",{ascending:false});
-  const box = document.getElementById("lists");
-  if(!lists?.length){ box.innerHTML=`<p class="muted">Пусто</p>`; return; }
-  box.innerHTML = lists.map(l=>`
-    <div class="row"><div style="flex:1">
-      <b>${escapeHtml(l.title)}</b> ${l.date?`— ${fmtDate(l.date)}`:""}
-    </div>
-    <button class="btn small secondary" data-open="${l.id}">Открыть</button>
-    </div>`).join("");
-  box.onclick = e=>{
-    const b = e.target.closest("[data-open]"); if(b) openList(b.dataset.open);
-  };
-}
-async function openList(id){
-  const { data: list } = await supabase.from("custom_lists").select("*").eq("id", id).single();
-  const { data: items } = await supabase.from("custom_list_items").select("*, clients(id,short_name,kind)").eq("list_id", id);
-  const sorted = sortClients((items||[]).map(i=>({...i, short_name:i.clients?.short_name})));
-  document.getElementById("lists").innerHTML = `
-    <button class="btn secondary small" id="back">← Назад</button>
-    <h3>${escapeHtml(list.title)}</h3>
-    <button class="btn small" id="edit">Редактировать</button>
-    <div style="margin-top:12px">
-    ${sorted.map(it=>`
-      <div class="row">
-        <div style="flex:1"><b>${escapeHtml(it.clients?.short_name||"")}</b></div>
-        <input class="input" style="flex:2" placeholder="Текст" value="${escapeHtml(it.note||"")}" data-note="${it.id}" disabled>
-        <input class="input" type="date" style="flex:1" value="${it.date||""}" data-date="${it.id}" disabled>
-      </div>`).join("")}
-    </div>`;
-  document.getElementById("back").onclick = render;
-  document.getElementById("edit").onclick = ()=>{
-    document.querySelectorAll("[data-note],[data-date]").forEach(el=>el.disabled=false);
-    document.getElementById("edit").outerHTML = `<button class="btn success small" id="save">Сохранить</button>`;
-    document.getElementById("save").onclick = async ()=>{
-      const notes = document.querySelectorAll("[data-note]");
-      for(const n of notes){
-        const id = n.dataset.note;
-        const d = document.querySelector(`[data-date="${id}"]`);
-        await supabase.from("custom_list_items").update({
-          note: n.value, date: d.value||null, updated_by: ctx.user.id, updated_at: new Date().toISOString()
-        }).eq("id", id);
-      }
-      toast("Сохранено"); openList(id);
-    };
-  };
+export async function initCustom(user) {
+    currentUser = user;
+    const { data } = await supabase.from('clients').select('id, short_name');
+    clients = sortClients(data || []);
+    document.getElementById('clientCheckboxes').innerHTML = clients.map(c => `
+        <label style="display: flex; align-items: center; gap: 8px; padding: 5px 0; font-weight: 400;">
+            <input type="checkbox" value="${c.id}" class="client-cb"> ${c.short_name}
+        </label>
+    `).join('');
+    loadLists();
+    setupEvents();
 }
 
-document.getElementById("addBtn").onclick = ()=>document.getElementById("mAdd").classList.add("open");
-document.getElementById("mCancel").onclick = ()=>document.getElementById("mAdd").classList.remove("open");
-document.getElementById("mCreate").onclick = async ()=>{
-  const title = document.getElementById("fTitle").value.trim();
-  if(!title){ toast("Введите название"); return; }
-  const date = document.getElementById("fDate").value || null;
-  const { data: l } = await supabase.from("custom_lists").insert({ title, date, created_by: ctx.user.id }).select().single();
-  const checked = [...document.querySelectorAll("[data-cid]:checked")].map(i=>i.dataset.cid);
-  if(checked.length){
-    await supabase.from("custom_list_items").insert(checked.map(cid=>({list_id:l.id, client_id:cid})));
-  }
-  document.getElementById("mAdd").classList.remove("open");
-  render();
-};
-render();
+async function loadLists() {
+    const { data: lists } = await supabase.from('custom_lists').select('*').order('created_at', { ascending: false });
+    const container = document.getElementById('customListsContainer');
+    if (!lists || lists.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted);">Нет списков</div>';
+        return;
+    }
+    container.innerHTML = lists.map(l => `
+        <div class="card">
+            <div style="font-size: 16px; font-weight: 600;">${l.title}</div>
+            <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 10px;">${l.date ? formatDate(l.date) : 'Без даты'}</div>
+            <button class="btn btn-outline btn-sm view-list-btn" data-id="${l.id}">Открыть</button>
+        </div>
+    `).join('');
+    document.querySelectorAll('.view-list-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            window.location.href = `custom.html?list=${e.target.dataset.id}`;
+        });
+    });
+}
+
+function setupEvents() {
+    document.getElementById('addListBtn').addEventListener('click', () => {
+        document.getElementById('listModal').classList.add('active');
+    });
+
+    document.getElementById('selectAllBtn').addEventListener('click', () => {
+        const cbs = document.querySelectorAll('.client-cb');
+        const allChecked = Array.from(cbs).every(cb => cb.checked);
+        cbs.forEach(cb => cb.checked = !allChecked);
+    });
+
+    document.getElementById('createListBtn').addEventListener('click', async () => {
+        const title = document.getElementById('listTitle').value;
+        const date = document.getElementById('listDate').value;
+        if (!title) return alert('Введите название');
+        const selected = Array.from(document.querySelectorAll('.client-cb:checked')).map(cb => cb.value);
+        if (selected.length === 0) return alert('Выберите хотя бы одну организацию');
+
+        const { data: newList, error } = await supabase.from('custom_lists').insert([{ title, date: date || null, created_by: currentUser.id }]).select().single();
+        if (error) { alert('Ошибка создания'); return; }
+
+        const items = selected.map(clientId => ({ list_id: newList.id, client_id: clientId }));
+        await supabase.from('custom_list_items').insert(items);
+
+        document.getElementById('listModal').classList.remove('active');
+        document.getElementById('listTitle').value = '';
+        document.getElementById('listDate').value = '';
+        document.querySelectorAll('.client-cb').forEach(cb => cb.checked = false);
+        loadLists();
+    });
+}
