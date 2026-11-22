@@ -8,18 +8,19 @@
 </head>
 <body>
 <div class="container">
-  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <h1 class="page-title" style="margin:0">Клиенты</h1>
+  <h1 class="page-title">Клиенты</h1>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div class="tabs" style="display:flex; gap:8px; background:var(--surface); padding:6px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
+      <button class="tab active" data-kind="all" style="padding:8px 16px; border:none; background:var(--primary); color:white; border-radius:6px; cursor:pointer; font-weight:600;">Все</button>
+      <button class="tab" data-kind="ООО" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">ООО</button>
+      <button class="tab" data-kind="ИП" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">ИП</button>
+    </div>
     <a class="btn" href="client.html">+ Добавить клиента</a>
   </div>
-  <div class="card" style="margin-top:14px">
-    <div class="tabs">
-      <button class="tab active" data-kind="all">Все</button>
-      <button class="tab" data-kind="ООО">ООО</button>
-      <button class="tab" data-kind="ИП">ИП</button>
-    </div>
-    <input class="input" id="search" placeholder="Поиск по названию, ИНН, адресу…">
-    <div id="list" style="margin-top:12px"></div>
+  
+  <div class="card" style="padding:24px;">
+    <input class="input" id="search" placeholder="🔍 Поиск по названию, ИНН, адресу…" style="margin-bottom:20px;">
+    <div id="list"></div>
   </div>
 </div>
 <script type="module" src="assets/js/clients.js"></script>
