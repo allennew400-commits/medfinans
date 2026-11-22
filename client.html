@@ -1,29 +1,234 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Клиент — МЕДФИНАНС ГРУПП</title>
-<link rel="stylesheet" href="assets/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Карточка клиента</title>
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-<div class="container">
-  <a href="clients.html" class="btn secondary small" style="margin-bottom:24px; display:inline-block;">← К списку</a>
-  
-  <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
-      <h1 class="page-title" id="title">Клиент</h1>
-      <div id="editBtns">
-        <button class="btn" id="editBtn">✏️ Редактировать</button>
-        <button class="btn success hidden" id="saveBtn">💾 Сохранить</button>
-        <button class="btn secondary hidden" id="cancelBtn">Отмена</button>
-      </div>
+    <div class="mobile-header">
+        <button class="burger-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+        <div class="logo-container"><img src="assets/logo.png" alt=""> МедФинанс</div>
     </div>
-    
-    <div id="form" class="grid grid-2"></div>
-    <div id="notesBlock" style="margin-top:32px;"></div>
-  </div>
-</div>
-<script type="module" src="assets/js/client.js"></script>
+    <aside class="sidebar">
+        <div class="logo-container"><img src="assets/logo.png" alt="Логотип"><span>МЕДФИНАНС</span></div>
+        <ul class="nav-links">
+            <li><a href="app.html">Главная</a></li>
+            <li><a href="clients.html" class="active">Клиенты</a></li>
+            <li><a href="tasks.html">Задачи</a></li>
+            <li><a href="passwords.html">Пароли</a></li>
+            <li><a href="salary.html">Зарплаты</a></li>
+            <li><a href="reports.html">Отчетность</a></li>
+            <li><a href="payments.html">Платежи</a></li>
+            <li><a href="custom.html">Произвольное</a></li>
+            <li><a href="calendar.html">Календарь</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <h1 id="clientTitle">Карточка клиента</h1>
+            <div class="user-info" id="user-header"></div>
+        </header>
+
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+            <button class="btn btn-outline" onclick="window.location.href='clients.html'">← Назад</button>
+            <button class="btn btn-primary" id="editBtn">Редактировать</button>
+            <button class="btn btn-success" id="saveBtn" style="display:none;">💾 Сохранить</button>
+        </div>
+
+        <div class="card" id="clientCard">
+            <div style="text-align: center; color: var(--text-muted);">Загрузка данных...</div>
+        </div>
+
+        <!-- Заметки -->
+        <div class="card" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h3>Заметки</h3>
+                <button class="btn btn-primary btn-sm" id="addNoteBtn">+ Добавить заметку</button>
+            </div>
+            <div id="notesList">Загрузка...</div>
+        </div>
+    </main>
+
+    <!-- Модалка заметки -->
+    <div class="modal-overlay" id="noteModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="document.getElementById('noteModal').classList.remove('active')">&times;</button>
+            <h3>Новая заметка</h3>
+            <div class="form-group">
+                <label>Текст (обязательно)</label>
+                <textarea id="noteText" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Дата (необязательно)</label>
+                <input type="date" id="noteDate">
+            </div>
+            <button class="btn btn-primary" id="saveNoteBtn">Создать</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from './assets/js/auth.js';
+        import { supabase } from './assets/js/supabase.js';
+        import { formatDate, copyToClipboard } from './assets/js/utils.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientId = urlParams.get('id');
+        let currentUser = null;
+        let isEditing = false;
+
+        async function init() {
+            currentUser = await checkAuth();
+            if (!currentUser) return;
+            if (!clientId) { window.location.href = 'clients.html'; return; }
+            await loadClient();
+            await loadNotes();
+            setupEvents();
+        }
+
+        async function loadClient() {
+            const { data: client, error } = await supabase.from('clients').select('*').eq('id', clientId).single();
+            if (error || !client) { alert('Клиент не найден'); return; }
+            
+            document.getElementById('clientTitle').textContent = client.short_name;
+            renderFields(client);
+        }
+
+        const fields = [
+            { key: 'short_name', label: 'Сокращенное наименование', type: 'text', required: true },
+            { key: 'full_name', label: 'Полное наименование', type: 'text' },
+            { key: 'inn', label: 'ИНН', type: 'text' },
+            { key: 'kpp', label: 'КПП', type: 'text' },
+            { key: 'ogrn', label: 'ОГРН', type: 'text' },
+            { key: 'director_role', label: 'Должность директора', type: 'select', options: ['Директор', 'Генеральный директор'] },
+            { key: 'director_name', label: 'ФИО Директора', type: 'text' },
+            { key: 'director_birthday', label: 'Дата рождения директора', type: 'date' },
+            { key: 'director_phone', label: 'Телефон директора', type: 'text' },
+            { key: 'email_1c', label: 'Почта 1С', type: 'text' },
+            { key: 'email_work', label: 'Рабочая почта', type: 'text' },
+            { key: 'registration_date', label: 'Дата регистрации', type: 'date' },
+            { key: 'registration_authority', label: 'Регистрирующий орган', type: 'text' },
+            { key: 'tax_type', label: 'Вид налогообложения', type: 'text' },
+            { key: 'bank_bik', label: 'Банк (БИК)', type: 'text' },
+            { key: 'account_number', label: 'Номер счета', type: 'text' },
+            { key: 'legal_address', label: 'Юридический адрес', type: 'text' },
+            { key: 'actual_address', label: 'Фактический адрес', type: 'text' },
+            { key: 'tax_office', label: 'Налоговая инспекция', type: 'text' },
+            { key: 'okopf', label: 'ОКОПФ', type: 'text' },
+            { key: 'okfs', label: 'ОКФС', type: 'text' },
+            { key: 'okved', label: 'ОКВЭД', type: 'text' },
+            { key: 'edo_astral', label: 'ЭДО Калуга Астрал', type: 'text' },
+            { key: 'edo_sbis', label: 'ЭДО СБИС', type: 'text' },
+            { key: 'salary_day', label: 'Дата зарплаты (число)', type: 'select', options: [5,10,15,20,25,30] },
+            { key: 'advance_day', label: 'Дата аванса (число)', type: 'select', options: [5,10,15,20,25,30] },
+            { key: 'work_start_date', label: 'Дата начала работы с клиникой', type: 'date' }
+        ];
+
+        function renderFields(client) {
+            const card = document.getElementById('clientCard');
+            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">';
+            
+            fields.forEach(f => {
+                let val = client[f.key] || '';
+                if (f.type === 'date' && val) val = formatDate(val);
+                if (f.type === 'select' && val) val = val + (f.key.includes('day') ? ' число' : '');
+
+                html += `<div>
+                    <label>${f.label}</label>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        ${isEditing 
+                            ? (f.type === 'select' 
+                                ? `<select data-key="${f.key}">${f.options.map(o => `<option value="${o}" ${val.includes(o) ? 'selected' : ''}>${o}${f.key.includes('day')?' число':''}</option>`).join('')}</select>`
+                                : `<input type="${f.type}" data-key="${f.key}" value="${client[f.key] || ''}">`)
+                            : `<span id="val-${f.key}" style="font-weight: 500; word-break: break-all;">${val || '—'}</span>
+                               ${val ? `<button class="copy-btn" data-copy="${val}"></button>` : ''}`
+                        }
+                    </div>
+                </div>`;
+            });
+
+            // Файлы
+            html += `<div><label>Реквизиты</label><div>${client.requisites_file_url ? `<a href="${client.requisites_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
+            html += `<div><label>Лицензия</label><div>${client.license_file_url ? `<a href="${client.license_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
+            
+            html += '</div>';
+            card.innerHTML = html;
+
+            // Обработчики копирования
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => copyToClipboard(e.target.dataset.copy, e.target));
+            });
+        }
+
+        function setupEvents() {
+            document.getElementById('editBtn').addEventListener('click', () => {
+                isEditing = true;
+                loadClient(); // перерисовывает с инпутами
+                document.getElementById('editBtn').style.display = 'none';
+                document.getElementById('saveBtn').style.display = 'inline-flex';
+            });
+
+            document.getElementById('saveBtn').addEventListener('click', async () => {
+                const updates = {};
+                document.querySelectorAll('[data-key]').forEach(el => {
+                    updates[el.dataset.key] = el.value;
+                });
+                
+                const { error } = await supabase.from('clients').update(updates).eq('id', clientId);
+                if (error) { alert('Ошибка сохранения'); console.error(error); return; }
+                
+                isEditing = false;
+                document.getElementById('editBtn').style.display = 'inline-flex';
+                document.getElementById('saveBtn').style.display = 'none';
+                await loadClient();
+            });
+
+            // Заметки
+            document.getElementById('addNoteBtn').addEventListener('click', () => {
+                document.getElementById('noteModal').classList.add('active');
+            });
+            document.getElementById('saveNoteBtn').addEventListener('click', async () => {
+                const text = document.getElementById('noteText').value;
+                const date = document.getElementById('noteDate').value;
+                if (!text) return alert('Введите текст заметки');
+                
+                await supabase.from('client_notes').insert([{
+                    client_id: clientId, text, event_date: date || null, created_by: currentUser.id
+                }]);
+                
+                document.getElementById('noteText').value = '';
+                document.getElementById('noteDate').value = '';
+                document.getElementById('noteModal').classList.remove('active');
+                await loadNotes();
+            });
+        }
+
+        async function loadNotes() {
+            const { data: notes } = await supabase.from('client_notes')
+                .select('*, profiles(full_name)')
+                .eq('client_id', clientId)
+                .order('created_at', { ascending: false });
+            
+            const container = document.getElementById('notesList');
+            if (!notes || notes.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted);">Пока нет заметок</div>';
+                return;
+            }
+            
+            container.innerHTML = notes.map(n => `
+                <div style="padding: 10px 0; border-bottom: 1px solid #eee;">
+                    <div style="font-size: 14px;">${n.text}</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">
+                        ${n.event_date ? `Событие: ${formatDate(n.event_date)} | ` : ''}
+                        Автор: ${n.profiles?.full_name || 'Неизвестно'} | ${formatDate(n.created_at)}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        init();
+    </script>
 </body>
 </html>
