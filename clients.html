@@ -1,28 +1,128 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Клиенты — МЕДФИНАНС ГРУПП</title>
-<link rel="stylesheet" href="assets/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Клиенты - МЕДФИНАНС ГРУПП</title>
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-<div class="container">
-  <h1 class="page-title">Клиенты</h1>
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
-    <div class="tabs" style="display:flex; gap:8px; background:var(--surface); padding:6px; border-radius:var(--radius-sm); box-shadow:var(--shadow-sm);">
-      <button class="tab active" data-kind="all" style="padding:8px 16px; border:none; background:var(--primary); color:white; border-radius:6px; cursor:pointer; font-weight:600;">Все</button>
-      <button class="tab" data-kind="ООО" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">ООО</button>
-      <button class="tab" data-kind="ИП" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">ИП</button>
+    <div class="mobile-header">
+        <button class="burger-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+        <div class="logo-container"><img src="assets/logo.png" alt=""> МедФинанс</div>
     </div>
-    <a class="btn" href="client.html">+ Добавить клиента</a>
-  </div>
-  
-  <div class="card" style="padding:24px;">
-    <input class="input" id="search" placeholder="🔍 Поиск по названию, ИНН, адресу…" style="margin-bottom:20px;">
-    <div id="list"></div>
-  </div>
-</div>
-<script type="module" src="assets/js/clients.js"></script>
+    <aside class="sidebar">
+        <div class="logo-container"><img src="assets/logo.png" alt="Логотип"><span>МЕДФИНАНС</span></div>
+        <ul class="nav-links">
+            <li><a href="app.html">Главная</a></li>
+            <li><a href="clients.html" class="active">Клиенты</a></li>
+            <li><a href="tasks.html">Задачи</a></li>
+            <li><a href="passwords.html">Пароли</a></li>
+            <li><a href="salary.html">Зарплаты</a></li>
+            <li><a href="reports.html">Отчетность</a></li>
+            <li><a href="payments.html">Платежи</a></li>
+            <li><a href="custom.html">Произвольное</a></li>
+            <li><a href="calendar.html">Календарь</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <h1>Клиенты</h1>
+            <div class="user-info" id="user-header"></div>
+        </header>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+            <div class="tabs" style="margin: 0; border: none;">
+                <button class="tab active" data-kind="all">Все</button>
+                <button class="tab" data-kind="ООО">ООО</button>
+                <button class="tab" data-kind="ИП">ИП</button>
+            </div>
+            <div style="display: flex; gap: 10px; width: 100%; max-width: 400px;">
+                <input type="text" id="searchInput" placeholder="Поиск по названию, ИНН, адресу..." style="width: 100%;">
+                <button class="btn btn-primary" onclick="window.location.href='client.html'">+ Добавить</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Название</th>
+                        <th>Тип</th>
+                        <th>ИНН</th>
+                        <th>Директор</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="clientsTableBody">
+                    <tr><td colspan="6" style="text-align: center;">Загрузка...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script type="module">
+        import { checkAuth } from './assets/js/auth.js';
+        import { supabase } from './assets/js/supabase.js';
+        import { sortClients } from './assets/js/utils.js';
+
+        let allClients = [];
+        let currentKind = 'all';
+
+        async function loadClients() {
+            const user = await checkAuth();
+            if (!user) return;
+
+            const { data, error } = await supabase.from('clients').select('*');
+            if (error) { console.error(error); return; }
+            
+            allClients = sortClients(data);
+            renderTable();
+        }
+
+        function renderTable() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const tbody = document.getElementById('clientsTableBody');
+            
+            let filtered = allClients.filter(c => {
+                const matchesKind = currentKind === 'all' || c.kind === currentKind;
+                const matchesSearch = c.short_name.toLowerCase().includes(search) || 
+                                      (c.inn && c.inn.includes(search)) || 
+                                      (c.legal_address && c.legal_address.toLowerCase().includes(search));
+                return matchesKind && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Ничего не найдено</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map((c, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><b>${c.short_name}</b></td>
+                    <td><span class="badge badge-info">${c.kind || '-'}</span></td>
+                    <td>${c.inn || '-'}</td>
+                    <td>${c.director_name || '-'}</td>
+                    <td><a href="client.html?id=${c.id}" class="btn btn-outline btn-sm">Открыть</a></td>
+                </tr>
+            `).join('');
+        }
+
+        // События
+        document.getElementById('searchInput').addEventListener('input', renderTable);
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                currentKind = e.target.dataset.kind;
+                renderTable();
+            });
+        });
+
+        loadClients();
+    </script>
 </body>
 </html>
