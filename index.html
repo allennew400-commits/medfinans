@@ -5,27 +5,30 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Вход — МЕДФИНАНС ГРУПП</title>
 <link rel="stylesheet" href="assets/css/style.css">
-<link rel="manifest" href="assets/manifest.json">
-<meta name="theme-color" content="#2f6bff">
+<style>
+  body { display: grid; place-items: center; background: var(--bg); }
+  .login-card { background: var(--surface); padding: 40px; border-radius: var(--radius); box-shadow: var(--shadow-md); width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--border); }
+  .login-card h1 { margin: 16px 0 8px; font-size: 24px; }
+  .login-card p { color: var(--text-muted); margin-bottom: 24px; }
+  .login-logo { max-height: 60px; margin: 0 auto; display: block; }
+</style>
 </head>
 <body>
-<div class="login-wrap">
   <form class="login-card" id="loginForm" autocomplete="on">
     <img src="assets/logo.png" class="login-logo" alt="" onerror="this.style.display='none'">
     <h1>МЕДФИНАНС ГРУПП</h1>
-    <p class="sub">Вход в систему бухгалтерии</p>
-    <div class="field">
-      <label>Логин</label>
+    <p>Вход в систему бухгалтерии</p>
+    <div class="field" style="text-align:left;">
+      <label>Логин (Email)</label>
       <input class="input" id="email" name="username" autocomplete="username" required>
     </div>
-    <div class="field">
+    <div class="field" style="text-align:left;">
       <label>Пароль</label>
       <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
     </div>
-    <button class="btn" type="submit" style="width:100%">Войти</button>
-    <p class="muted" id="loginErr" style="color:var(--red);text-align:center;margin-top:12px"></p>
+    <button class="btn" type="submit" style="width:100%; margin-top:16px;">Войти</button>
+    <p id="loginErr" style="color:var(--danger); margin-top:16px; font-size:14px;"></p>
   </form>
-</div>
 <script type="module" src="assets/js/auth.js"></script>
 </body>
 </html>
