@@ -1,1 +1,83 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Диагностика Supabase</title>
+<style>
+  body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; }
+  .ok { color: #4caf50; }
+  .err { color: #f44336; }
+  .warn { color: #ff9800; }
+  pre { background: #2d2d2d; padding: 10px; border-radius: 5px; overflow-x: auto; }
+  h2 { border-bottom: 1px solid #444; padding-bottom: 5px; }
+</style>
+</head>
+<body>
+<h2>🔍 Диагностика подключения</h2>
+<div id="log"></div>
 
+<script type="module">
+import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from "./assets/js/supabase.js";
+
+const log = (msg, type = "") => {
+  document.getElementById("log").innerHTML += `<p class="${type}">${msg}</p>`;
+};
+
+// 1. Проверка URL и ключа
+log(`<b>1. Проверка конфигурации:</b>`);
+log(`URL: ${SUPABASE_URL}`, SUPABASE_URL.includes("supabase.co") ? "ok" : "err");
+log(`Ключ: ${SUPABASE_ANON_KEY.substring(0, 20)}...`, SUPABASE_ANON_KEY.startsWith("eyJ") ? "ok" : "err");
+
+// 2. Проверка соединения (запрос к любой таблице)
+log(`<b>2. Проверка сети (запрос к таблице profiles):</b>`);
+try {
+  const { data, error, status } = await supabase.from("profiles").select("*").limit(1);
+  if (error) {
+    log(`Ошибка API (статус ${status}): ${error.message}`, "err");
+    log(`Код ошибки: ${error.code}`, "warn");
+    if (error.code === "PGRST116") log("Таблица profiles существует, но пуста. Это нормально.", "ok");
+    if (error.code === "42P01") log("Таблица profiles НЕ СУЩЕСТВУЕТ. SQL-скрипт не выполнен.", "err");
+    if (error.message.includes("Failed to fetch")) log("СЕТЬ НЕДОСТУПНА. Проверь URL.", "err");
+  } else {
+    log(`Успех! Соединение работает. Статус: ${status}`, "ok");
+  }
+} catch (e) {
+  log(`Исключение JS: ${e.message}`, "err");
+}
+
+// 3. Проверка авторизации (попытка входа)
+log(`<b>3. Проверка авторизации (вход dasha@medfinans.local):</b>`);
+try {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: "dasha@medfinans.local",
+    password: "Dasha_Mng@2025!"
+  });
+  if (error) {
+    log(`Ошибка входа: ${error.message}`, "err");
+    log(`Код: ${error.code} / Статус: ${error.status}`, "warn");
+    if (error.message.includes("Invalid login")) log("Пользователь создан, но пароль не совпадает.", "err");
+    if (error.message.includes("Email not confirmed")) log("Пользователь не подтвержден.", "err");
+  } else {
+    log(`Вход успешен! Привет, ${data.user.email}`, "ok");
+  }
+} catch (e) {
+  log(`Исключение при входе: ${e.message}`, "err");
+}
+
+// 4. Проверка Storage
+log(`<b>4. Проверка хранилища файлов (Storage):</b>`);
+try {
+  const { data, error } = await supabase.storage.from("files").list();
+  if (error) {
+    log(`Ошибка Storage: ${error.message}`, "err");
+  } else {
+    log(`Storage доступен. Файлов: ${data.length}`, "ok");
+  }
+} catch (e) {
+  log(`Исключение Storage: ${e.message}`, "err");
+}
+
+log(`<b>✅ Диагностика завершена.</b>`);
+</script>
+</body>
+</html>
