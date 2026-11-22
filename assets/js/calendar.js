@@ -1,62 +1,89 @@
-import { initHeader } from "./auth.js";
-import { supabase } from "./supabase.js";
-import { fmtDate, escapeHtml, HOLIDAYS } from "./utils.js";
+import { supabase } from './supabase.js';
+import { formatDate } from './utils.js';
 
-await initHeader("calendar.html");
+let currentUser = null;
+let currentDate = new Date();
+let events = [];
 
-let cur = new Date();
-const MN = ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"];
+const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
 
-async function render(){
-  document.getElementById("monthTitle").textContent = `${MN[cur.getMonth()]} ${cur.getFullYear()}`;
-  const year = cur.getFullYear(), month = cur.getMonth();
-  const first = new Date(year, month, 1);
-  const startDay = (first.getDay()+6)%7;
-  const start = new Date(year, month, 1-startDay);
-  const cells = 42;
-  const from = start.toISOString().slice(0,10);
-  const end = new Date(start.getTime() + cells*86400000).toISOString().slice(0,10);
-
-  const [{ data: tasks }, { data: runs }, { data: reps }, { data: pays }, { data: cls }] = await Promise.all([
-    supabase.from("tasks").select("*").gte("due_date",from).lte("due_date",end),
-    supabase.from("salary_runs").select("*").gte("pay_date",from).lte("pay_date",end),
-    supabase.from("reports").select("*").gte("due_date",from).lte("due_date",end),
-    supabase.from("payments").select("*").gte("pay_date",from).lte("pay_date",end),
-    supabase.from("clients").select("short_name,director_name,director_birthday").not("director_birthday","is",null)
-  ]);
-
-  const evByDate = {};
-  const add = (d, type, txt) => { (evByDate[d]=evByDate[d]||[]).push({type,txt}); };
-  (tasks||[]).forEach(t=>t.due_date && add(t.due_date,"task", t.text));
-  (runs||[]).forEach(r=>add(r.pay_date,"salary", r.kind));
-  (reps||[]).forEach(r=>add(r.due_date,"report", r.title));
-  (pays||[]).forEach(p=>add(p.pay_date,"payment", p.title));
-  (cls||[]).forEach(c=>{
-    const b = new Date(c.director_birthday);
-    if(b.getMonth()===month){
-      const d = new Date(year, month, b.getDate()).toISOString().slice(0,10);
-      add(d,"birthday", `🎂 ${c.short_name}`);
-    }
-  });
-
-  const today = new Date(); today.setHours(0,0,0,0);
-  let html = "";
-  for(let i=0;i<cells;i++){
-    const d = new Date(start.getTime() + i*86400000);
-    const ds = d.toISOString().slice(0,10);
-    const md = String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-    const isHol = HOLIDAYS.has(md);
-    const otherMonth = d.getMonth()!==month;
-    const isToday = d.getTime()===today.getTime();
-    const evs = evByDate[ds]||[];
-    html += `<div class="cal-cell ${otherMonth?"other":""} ${isToday?"today":""}">
-      <span class="dnum ${isHol?"holiday":""}">${d.getDate()}</span>
-      ${evs.slice(0,4).map(e=>`<div class="cal-event ${e.type}" title="${escapeHtml(e.txt)}">${escapeHtml(e.txt)}</div>`).join("")}
-    </div>`;
-  }
-  document.getElementById("grid").innerHTML = html;
+export async function initCalendar(user) {
+    currentUser = user;
+    await loadEvents();
+    renderCalendar();
+    setupEvents();
 }
-document.getElementById("prev").onclick = ()=>{ cur.setMonth(cur.getMonth()-1); render(); };
-document.getElementById("next").onclick = ()=>{ cur.setMonth(cur.getMonth()+1); render(); };
-document.getElementById("today").onclick = ()=>{ cur = new Date(); render(); };
-render();
+
+async function loadEvents() {
+    const { data: tasks } = await supabase.from('tasks').select('text, due_date').not('due_date', 'is', null);
+    const { data: salaries } = await supabase.from('salary_runs').select('kind, pay_date').not('pay_date', 'is', null);
+    const { data: reports } = await supabase.from('reports').select('title, due_date').not('due_date', 'is', null);
+    const { data: payments } = await supabase.from('payments').select('title, pay_date').not('pay_date', 'is', null);
+    const { data: notes } = await supabase.from('client_notes').select('text, event_date').not('event_date', 'is', null);
+
+    events = [
+        ...(tasks || []).map(t => ({ date: t.due_date, title: 'Задача: ' + t.text, type: 'task' })),
+        ...(salaries || []).map(s => ({ date: s.pay_date, title: 'Выплата: ' + (s.kind === 'salary' ? 'Зарплата' : s.kind), type: 'salary' })),
+        ...(reports || []).map(r => ({ date: r.due_date, title: 'Отчет: ' + r.title, type: 'report' })),
+        ...(payments || []).map(p => ({ date: p.pay_date, title: 'Платеж: ' + p.title, type: 'payment' })),
+        ...(notes || []).map(n => ({ date: n.event_date, title: 'Заметка: ' + n.text, type: 'note' }))
+    ];
+}
+
+function renderCalendar() {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    document.getElementById('currentMonth').textContent = `${months[month]} ${year}`;
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    let startDay = firstDay.getDay() === 0 ? 7 : firstDay.getDay();
+
+    const grid = document.getElementById('calendarGrid');
+    let html = weekdays.map(d => `<div style="font-weight: 600; text-align: center; padding: 5px; font-size: 12px; color: var(--text-muted);">${d}</div>`).join('');
+
+    for (let i = 1; i < startDay; i++) {
+        html += `<div></div>`;
+    }
+
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const dayEvents = events.filter(e => e.date === dateStr);
+        const hasEvents = dayEvents.length > 0;
+        html += `
+            <div class="cal-day" data-date="${dateStr}" style="padding: 8px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); min-height: 50px; position: relative; background: ${hasEvents ? 'rgba(99,102,241,0.05)' : 'white'};">
+                <div style="font-weight: 500;">${day}</div>
+                ${hasEvents ? `<div style="width: 6px; height: 6px; border-radius: 50%; background: var(--primary); position: absolute; bottom: 5px; right: 5px;"></div>` : ''}
+            </div>
+        `;
+    }
+    grid.innerHTML = html;
+
+    document.querySelectorAll('.cal-day').forEach(el => {
+        el.addEventListener('click', () => {
+            const date = el.dataset.date;
+            const dayEvents = events.filter(e => e.date === date);
+            document.getElementById('selectedDateTitle').textContent = formatDate(date);
+            const list = document.getElementById('eventsList');
+            if (dayEvents.length === 0) {
+                list.innerHTML = '<div style="color: var(--text-muted);">Событий нет</div>';
+            } else {
+                list.innerHTML = dayEvents.map(e => `<div style="padding: 8px 0; border-bottom: 1px solid var(--border);">${e.title}</div>`).join('');
+            }
+            document.getElementById('dayEvents').style.display = 'block';
+        });
+    });
+}
+
+function setupEvents() {
+    document.getElementById('prevMonth').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() - 1);
+        renderCalendar();
+    });
+
+    document.getElementById('nextMonth').addEventListener('click', () => {
+        currentDate.setMonth(currentDate.getMonth() + 1);
+        renderCalendar();
+    });
+}
