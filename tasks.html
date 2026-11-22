@@ -1,47 +1,180 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Задачи — МЕДФИНАНС ГРУПП</title>
-<link rel="stylesheet" href="assets/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Задачи</title>
+    <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-<div class="container">
-  <h1 class="page-title">Задачи</h1>
-  
-  <div class="tabs" style="display:flex; gap:8px; margin-bottom:24px; background:var(--surface); padding:6px; border-radius:var(--radius-sm); width:fit-content; box-shadow:var(--shadow-sm);">
-    <button class="tab active" data-s="common" style="padding:8px 16px; border:none; background:var(--primary); color:white; border-radius:6px; cursor:pointer; font-weight:600;">Общие</button>
-    <button class="tab" data-s="personal" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">Мои задачи</button>
-    <button class="tab" data-s="archive" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">Архив</button>
-  </div>
-
-  <div class="card">
-    <button class="btn" id="addBtn" style="margin-bottom:20px;">+ Добавить задачу</button>
-    <div id="list"></div>
-  </div>
-</div>
-
-<div class="modal-bg" id="modal">
-  <div class="modal">
-    <h2 id="modalTitle">Новая задача</h2>
-    <div class="field"><label>Текст задачи</label><textarea class="input" id="mText" rows="3"></textarea></div>
-    <div class="field"><label>Дата выполнения</label><input class="input" type="date" id="mDate"></div>
-    <div class="field"><label>Повтор</label>
-      <select class="input" id="mRec">
-        <option value="none">Нет</option>
-        <option value="daily">Ежедневно</option>
-        <option value="weekly">Еженедельно</option>
-        <option value="monthly">Ежемесячно</option>
-      </select>
+    <div class="mobile-header">
+        <button class="burger-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+        <div class="logo-container"><img src="assets/logo.png" alt=""> МедФинанс</div>
     </div>
-    <div class="field" id="assigneeField"><label>Для кого</label><select class="input" id="mAssignee"></select></div>
-    <div class="modal-actions">
-      <button class="btn secondary" id="mCancel">Отмена</button>
-      <button class="btn" id="mSave">Создать</button>
+    <aside class="sidebar">
+        <div class="logo-container"><img src="assets/logo.png" alt="Логотип"><span>МЕДФИНАНС</span></div>
+        <ul class="nav-links">
+            <li><a href="app.html">Главная</a></li>
+            <li><a href="clients.html">Клиенты</a></li>
+            <li><a href="tasks.html" class="active">Задачи</a></li>
+            <li><a href="passwords.html">Пароли</a></li>
+            <li><a href="salary.html">Зарплаты</a></li>
+            <li><a href="reports.html">Отчетность</a></li>
+            <li><a href="payments.html">Платежи</a></li>
+            <li><a href="custom.html">Произвольное</a></li>
+            <li><a href="calendar.html">Календарь</a></li>
+        </ul>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <h1>Задачи</h1>
+            <div class="user-info" id="user-header"></div>
+        </header>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div class="tabs" style="margin: 0; border: none;">
+                <button class="tab active" data-scope="common">Общие</button>
+                <button class="tab" data-scope="personal">Мои</button>
+            </div>
+            <button class="btn btn-primary" id="addTaskBtn">+ Добавить</button>
+        </div>
+
+        <div id="tasksList" class="dashboard-grid">
+            <div style="color: var(--text-muted);">Загрузка...</div>
+        </div>
+    </main>
+
+    <!-- Модалка добавления -->
+    <div class="modal-overlay" id="taskModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="document.getElementById('taskModal').classList.remove('active')">&times;</button>
+            <h3>Новая задача</h3>
+            <div class="form-group">
+                <label>Текст задачи</label>
+                <textarea id="taskText" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Дата выполнения</label>
+                <input type="date" id="taskDueDate">
+            </div>
+            <div class="form-group" id="assigneeGroup">
+                <label>Для кого</label>
+                <select id="taskAssignee">
+                    <option value="all">Для всех (общая)</option>
+                    <option value="personal">Только для меня</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Повторение</label>
+                <select id="taskRecurrence">
+                    <option value="none">Однократно</option>
+                    <option value="daily">Ежедневно</option>
+                    <option value="weekly">Еженедельно</option>
+                    <option value="monthly">Ежемесячно</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="saveTaskBtn">Создать</button>
+        </div>
     </div>
-  </div>
-</div>
-<script type="module" src="assets/js/tasks.js"></script>
+
+    <script type="module">
+        import { checkAuth } from './assets/js/auth.js';
+        import { supabase } from './assets/js/supabase.js';
+        import { formatDate } from './assets/js/utils.js';
+
+        let currentUser = null;
+        let currentScope = 'common';
+
+        async function init() {
+            currentUser = await checkAuth();
+            if (!currentUser) return;
+            loadTasks();
+        }
+
+        async function loadTasks() {
+            let query = supabase.from('tasks').select('*, profiles:created_by(full_name), completer:completed_by(full_name)');
+            
+            if (currentScope === 'common') {
+                query = query.eq('scope', 'common');
+            } else {
+                query = query.eq('scope', 'personal').eq('assignee', currentUser.id);
+            }
+
+            const { data: tasks } = await query.order('completed', { ascending: true }).order('due_date', { ascending: true });
+            
+            const container = document.getElementById('tasksList');
+            if (!tasks || tasks.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted);">Задач нет</div>';
+                return;
+            }
+
+            container.innerHTML = tasks.map(t => `
+                <div class="card" style="border-left: 4px solid ${t.completed ? 'var(--success)' : 'var(--primary)'};">
+                    <div style="font-size: 16px; font-weight: 500; margin-bottom: 10px; ${t.completed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${t.text}</div>
+                    <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                        ${formatDate(t.due_date)} | Создал: ${t.profiles?.full_name || '—'}
+                    </div>
+                    ${t.completed 
+                        ? `<div style="font-size: 12px; color: var(--success); font-weight: bold;">Выполнено ${t.completer?.full_name} (${formatDate(t.completed_at)})</div>`
+                        : `<button class="btn btn-success btn-sm complete-btn" data-id="${t.id}">Выполнить</button>`
+                    }
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.complete-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const id = e.target.dataset.id;
+                    await supabase.from('tasks').update({
+                        completed: true,
+                        completed_by: currentUser.id,
+                        completed_at: new Date().toISOString()
+                    }).eq('id', id);
+                    loadTasks();
+                });
+            });
+        }
+
+        // События
+        document.getElementById('addTaskBtn').addEventListener('click', () => {
+            document.getElementById('taskModal').classList.add('active');
+            document.getElementById('assigneeGroup').style.display = currentScope === 'personal' ? 'none' : 'block';
+        });
+
+        document.getElementById('saveTaskBtn').addEventListener('click', async () => {
+            const text = document.getElementById('taskText').value;
+            const dueDate = document.getElementById('taskDueDate').value;
+            const recurrence = document.getElementById('taskRecurrence').value;
+            const assigneeSelect = document.getElementById('taskAssignee').value;
+
+            if (!text) return alert('Введите текст задачи');
+
+            const taskData = {
+                text,
+                due_date: dueDate || null,
+                recurrence,
+                scope: currentScope,
+                created_by: currentUser.id,
+                assignee: currentScope === 'personal' ? currentUser.id : (assigneeSelect === 'personal' ? currentUser.id : null)
+            };
+
+            await supabase.from('tasks').insert([taskData]);
+            document.getElementById('taskText').value = '';
+            document.getElementById('taskDueDate').value = '';
+            document.getElementById('taskModal').classList.remove('active');
+            loadTasks();
+        });
+
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                e.target.classList.add('active');
+                currentScope = e.target.dataset.scope;
+                loadTasks();
+            });
+        });
+
+        init();
+    </script>
 </body>
 </html>
