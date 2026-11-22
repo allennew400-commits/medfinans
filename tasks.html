@@ -9,21 +9,23 @@
 <body>
 <div class="container">
   <h1 class="page-title">Задачи</h1>
-  <div class="tabs">
-    <button class="tab active" data-s="common">Общие</button>
-    <button class="tab" data-s="personal">Мои задачи</button>
-    <button class="tab" data-s="archive">Архив</button>
+  
+  <div class="tabs" style="display:flex; gap:8px; margin-bottom:24px; background:var(--surface); padding:6px; border-radius:var(--radius-sm); width:fit-content; box-shadow:var(--shadow-sm);">
+    <button class="tab active" data-s="common" style="padding:8px 16px; border:none; background:var(--primary); color:white; border-radius:6px; cursor:pointer; font-weight:600;">Общие</button>
+    <button class="tab" data-s="personal" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">Мои задачи</button>
+    <button class="tab" data-s="archive" style="padding:8px 16px; border:none; background:transparent; color:var(--text-muted); border-radius:6px; cursor:pointer; font-weight:600;">Архив</button>
   </div>
+
   <div class="card">
-    <button class="btn" id="addBtn">+ Добавить задачу</button>
-    <div id="list" style="margin-top:14px"></div>
+    <button class="btn" id="addBtn" style="margin-bottom:20px;">+ Добавить задачу</button>
+    <div id="list"></div>
   </div>
 </div>
 
 <div class="modal-bg" id="modal">
   <div class="modal">
     <h2 id="modalTitle">Новая задача</h2>
-    <div class="field"><label>Текст</label><textarea class="input" id="mText"></textarea></div>
+    <div class="field"><label>Текст задачи</label><textarea class="input" id="mText" rows="3"></textarea></div>
     <div class="field"><label>Дата выполнения</label><input class="input" type="date" id="mDate"></div>
     <div class="field"><label>Повтор</label>
       <select class="input" id="mRec">
