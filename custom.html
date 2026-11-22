@@ -1,33 +1,143 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Произвольное — МЕДФИНАНС ГРУПП</title>
-<link rel="stylesheet" href="assets/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Произвольное - МЕДФИНАНС ГРУПП</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="manifest" href="assets/manifest.json">
 </head>
 <body>
-<div class="container">
-  <h1 class="page-title">Произвольное</h1>
-  <div class="card">
-    <button class="btn" id="addBtn">+ Добавить</button>
-    <div id="lists" style="margin-top:14px"></div>
-  </div>
-</div>
+    <div class="mobile-header">
+        <button class="burger-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">Меню</button>
+        <div class="logo-container"><img src="assets/logo.png" alt=""> МедФинанс</div>
+    </div>
+    <aside class="sidebar">
+        <div class="logo-container"><img src="assets/logo.png" alt="Логотип"><span>МЕДФИНАНС</span></div>
+        <ul class="nav-links">
+            <li><a href="app.html">Главная</a></li>
+            <li><a href="clients.html">Клиенты</a></li>
+            <li><a href="tasks.html">Задачи</a></li>
+            <li><a href="passwords.html">Пароли</a></li>
+            <li><a href="salary.html">Зарплаты</a></li>
+            <li><a href="reports.html">Отчетность</a></li>
+            <li><a href="payments.html">Платежи</a></li>
+            <li><a href="custom.html" class="active">Произвольное</a></li>
+            <li><a href="calendar.html">Календарь</a></li>
+        </ul>
+    </aside>
 
-<div class="modal-bg" id="mAdd"><div class="modal">
-  <h2>Новый список</h2>
-  <div class="field"><label>Название</label><input class="input" id="fTitle"></div>
-  <div class="field"><label>Дата (необязательно)</label><input class="input" type="date" id="fDate"></div>
-  <div class="field"><label>Клиенты</label>
-    <label style="display:block"><input type="checkbox" id="selAll"> Выбрать все</label>
-    <div id="clientChecks" style="max-height:240px;overflow:auto;margin-top:8px"></div>
-  </div>
-  <div class="modal-actions">
-    <button class="btn secondary" id="mCancel">Отмена</button>
-    <button class="btn" id="mCreate">Создать</button>
-  </div>
-</div></div>
-<script type="module" src="assets/js/custom.js"></script>
+    <main class="main-content">
+        <header class="top-header">
+            <h1>Произвольные списки</h1>
+            <div class="user-info" id="user-header"></div>
+        </header>
+
+        <div style="margin-bottom: 20px;">
+            <button class="btn btn-primary" id="addListBtn">Добавить</button>
+        </div>
+
+        <div id="customListsContainer" class="dashboard-grid">
+            <div style="color: var(--text-muted);">Загрузка...</div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="listModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="document.getElementById('listModal').classList.remove('active')">&times;</button>
+            <h3>Новый список</h3>
+            <div class="form-group">
+                <label>Название</label>
+                <input type="text" id="listTitle" required>
+            </div>
+            <div class="form-group">
+                <label>Дата (необязательно)</label>
+                <input type="date" id="listDate">
+            </div>
+            <div class="form-group">
+                <label>Организации</label>
+                <div style="margin-bottom: 5px;">
+                    <button class="btn btn-outline btn-sm" id="selectAllBtn" type="button">Выбрать все</button>
+                </div>
+                <div id="clientCheckboxes" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); padding: 10px;"></div>
+            </div>
+            <button class="btn btn-primary" id="createListBtn">Создать</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from './assets/js/auth.js';
+        import { supabase } from './assets/js/supabase.js';
+        import { formatDate, sortClients } from './assets/js/utils.js';
+
+        let currentUser = null;
+        let clients = [];
+
+        async function init() {
+            currentUser = await checkAuth();
+            if (!currentUser) return;
+            const { data } = await supabase.from('clients').select('id, short_name');
+            clients = sortClients(data || []);
+            document.getElementById('clientCheckboxes').innerHTML = clients.map(c => `
+                <label style="display: flex; align-items: center; gap: 8px; padding: 5px 0; font-weight: 400;">
+                    <input type="checkbox" value="${c.id}" class="client-cb"> ${c.short_name}
+                </label>
+            `).join('');
+            loadLists();
+        }
+
+        async function loadLists() {
+            const { data: lists } = await supabase.from('custom_lists').select('*').order('created_at', { ascending: false });
+            const container = document.getElementById('customListsContainer');
+            if (!lists || lists.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted);">Нет списков</div>';
+                return;
+            }
+            container.innerHTML = lists.map(l => `
+                <div class="card">
+                    <div style="font-size: 16px; font-weight: 600;">${l.title}</div>
+                    <div style="font-size: 14px; color: var(--text-muted); margin-bottom: 10px;">${l.date ? formatDate(l.date) : 'Без даты'}</div>
+                    <button class="btn btn-outline btn-sm view-list-btn" data-id="${l.id}">Открыть</button>
+                </div>
+            `).join('');
+            document.querySelectorAll('.view-list-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    window.location.href = `custom.html?list=${e.target.dataset.id}`;
+                });
+            });
+        }
+
+        document.getElementById('addListBtn').addEventListener('click', () => {
+            document.getElementById('listModal').classList.add('active');
+        });
+
+        document.getElementById('selectAllBtn').addEventListener('click', () => {
+            const cbs = document.querySelectorAll('.client-cb');
+            const allChecked = Array.from(cbs).every(cb => cb.checked);
+            cbs.forEach(cb => cb.checked = !allChecked);
+        });
+
+        document.getElementById('createListBtn').addEventListener('click', async () => {
+            const title = document.getElementById('listTitle').value;
+            const date = document.getElementById('listDate').value;
+            if (!title) return alert('Введите название');
+            const selected = Array.from(document.querySelectorAll('.client-cb:checked')).map(cb => cb.value);
+            if (selected.length === 0) return alert('Выберите хотя бы одну организацию');
+
+            const { data: newList, error } = await supabase.from('custom_lists').insert([{ title, date: date || null, created_by: currentUser.id }]).select().single();
+            if (error) { alert('Ошибка создания'); return; }
+
+            const items = selected.map(clientId => ({ list_id: newList.id, client_id: clientId }));
+            await supabase.from('custom_list_items').insert(items);
+
+            document.getElementById('listModal').classList.remove('active');
+            document.getElementById('listTitle').value = '';
+            document.getElementById('listDate').value = '';
+            document.querySelectorAll('.client-cb').forEach(cb => cb.checked = false);
+            loadLists();
+        });
+
+        init();
+    </script>
 </body>
 </html>
