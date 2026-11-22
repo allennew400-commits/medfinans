@@ -4,10 +4,12 @@ import { formatDate, copyToClipboard } from './utils.js';
 let clientId = null;
 let currentUser = null;
 let isEditing = false;
+let isCreating = false;
 
 const fields = [
     { key: 'short_name', label: 'Сокращенное наименование', type: 'text', required: true },
     { key: 'full_name', label: 'Полное наименование', type: 'text' },
+    { key: 'kind', label: 'Тип', type: 'select', options: ['ООО', 'ИП'] },
     { key: 'inn', label: 'ИНН', type: 'text' },
     { key: 'kpp', label: 'КПП', type: 'text' },
     { key: 'ogrn', label: 'ОГРН', type: 'text' },
@@ -39,10 +41,22 @@ export async function initClient(user) {
     currentUser = user;
     const urlParams = new URLSearchParams(window.location.search);
     clientId = urlParams.get('id');
-    if (!clientId) { window.location.href = 'clients.html'; return; }
-    await loadClient();
-    await loadNotes();
-    setupEvents();
+
+    if (!clientId) {
+        // Режим создания
+        isCreating = true;
+        document.getElementById('clientTitle').textContent = 'Новый клиент';
+        document.getElementById('editBtn').style.display = 'none';
+        document.getElementById('createBtn').style.display = 'inline-flex';
+        document.getElementById('addNoteBtn').style.display = 'none';
+        document.getElementById('notesList').style.display = 'none';
+        renderFields({});
+        setupCreateEvent();
+    } else {
+        await loadClient();
+        await loadNotes();
+        setupEvents();
+    }
 }
 
 async function loadClient() {
@@ -59,14 +73,13 @@ function renderFields(client) {
     fields.forEach(f => {
         let val = client[f.key] || '';
         if (f.type === 'date' && val) val = formatDate(val);
-        if (f.type === 'select' && val) val = val + (f.key.includes('day') ? ' число' : '');
 
         html += `<div>
-            <label>${f.label}</label>
+            <label>${f.label}${f.required ? ' *' : ''}</label>
             <div style="display: flex; gap: 5px; align-items: center;">
-                ${isEditing
+                ${(isEditing || isCreating)
                     ? (f.type === 'select'
-                        ? `<select data-key="${f.key}">${f.options.map(o => `<option value="${o}" ${val.includes(o) ? 'selected' : ''}>${o}${f.key.includes('day')?' число':''}</option>`).join('')}</select>`
+                        ? `<select data-key="${f.key}">${f.options.map(o => `<option value="${o}" ${String(val).includes(String(o)) ? 'selected' : ''}>${o}${f.key.includes('day')?' число':''}</option>`).join('')}</select>`
                         : `<input type="${f.type}" data-key="${f.key}" value="${client[f.key] || ''}">`)
                     : `<span id="val-${f.key}" style="font-weight: 500; word-break: break-all;">${val || '—'}</span>
                        ${val ? `<button class="copy-btn" data-copy="${val}">Копировать</button>` : ''}`
@@ -75,14 +88,74 @@ function renderFields(client) {
         </div>`;
     });
 
-    html += `<div><label>Реквизиты</label><div>${client.requisites_file_url ? `<a href="${client.requisites_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
-    html += `<div><label>Лицензия</label><div>${client.license_file_url ? `<a href="${client.license_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
+    // Файлы
+    if (isCreating || isEditing) {
+        html += `<div>
+            <label>Реквизиты (файл)</label>
+            <input type="file" id="fileRequisites">
+            ${client.requisites_file_url ? `<div style="font-size:12px; margin-top:4px;"><a href="${client.requisites_file_url}" target="_blank">Текущий файл</a></div>` : ''}
+        </div>`;
+        html += `<div>
+            <label>Лицензия (файл)</label>
+            <input type="file" id="fileLicense">
+            ${client.license_file_url ? `<div style="font-size:12px; margin-top:4px;"><a href="${client.license_file_url}" target="_blank">Текущий файл</a></div>` : ''}
+        </div>`;
+    } else {
+        html += `<div><label>Реквизиты</label><div>${client.requisites_file_url ? `<a href="${client.requisites_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
+        html += `<div><label>Лицензия</label><div>${client.license_file_url ? `<a href="${client.license_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
+    }
 
     html += '</div>';
     card.innerHTML = html;
 
     document.querySelectorAll('.copy-btn').forEach(btn => {
         btn.addEventListener('click', (e) => copyToClipboard(e.target.dataset.copy, e.target));
+    });
+}
+
+function collectFormData() {
+    const data = {};
+    document.querySelectorAll('[data-key]').forEach(el => {
+        data[el.dataset.key] = el.value || null;
+    });
+    return data;
+}
+
+async function uploadFile(file, clientIdForPath, fieldName) {
+    if (!file) return null;
+    const path = `${clientIdForPath}/${fieldName}_${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from('files').upload(path, file, { upsert: true });
+    if (error) { console.error(error); return null; }
+    const { data: urlData } = supabase.storage.from('files').getPublicUrl(path);
+    return urlData.publicUrl;
+}
+
+function setupCreateEvent() {
+    document.getElementById('createBtn').addEventListener('click', async () => {
+        const data = collectFormData();
+        if (!data.short_name) return alert('Заполните сокращенное наименование');
+        data.created_by = currentUser.id;
+
+        const { data: newClient, error } = await supabase.from('clients').insert([data]).select().single();
+        if (error) { alert('Ошибка создания: ' + error.message); return; }
+
+        // Файлы
+        const reqFile = document.getElementById('fileRequisites')?.files[0];
+        const licFile = document.getElementById('fileLicense')?.files[0];
+        const updates = {};
+        if (reqFile) {
+            const url = await uploadFile(reqFile, newClient.id, 'requisites');
+            if (url) updates.requisites_file_url = url;
+        }
+        if (licFile) {
+            const url = await uploadFile(licFile, newClient.id, 'license');
+            if (url) updates.license_file_url = url;
+        }
+        if (Object.keys(updates).length > 0) {
+            await supabase.from('clients').update(updates).eq('id', newClient.id);
+        }
+
+        window.location.href = `client.html?id=${newClient.id}`;
     });
 }
 
@@ -95,12 +168,20 @@ function setupEvents() {
     });
 
     document.getElementById('saveBtn').addEventListener('click', async () => {
-        const updates = {};
-        document.querySelectorAll('[data-key]').forEach(el => {
-            updates[el.dataset.key] = el.value;
-        });
+        const updates = collectFormData();
+        const reqFile = document.getElementById('fileRequisites')?.files[0];
+        const licFile = document.getElementById('fileLicense')?.files[0];
+        if (reqFile) {
+            const url = await uploadFile(reqFile, clientId, 'requisites');
+            if (url) updates.requisites_file_url = url;
+        }
+        if (licFile) {
+            const url = await uploadFile(licFile, clientId, 'license');
+            if (url) updates.license_file_url = url;
+        }
+
         const { error } = await supabase.from('clients').update(updates).eq('id', clientId);
-        if (error) { alert('Ошибка сохранения'); console.error(error); return; }
+        if (error) { alert('Ошибка сохранения: ' + error.message); return; }
         isEditing = false;
         document.getElementById('editBtn').style.display = 'inline-flex';
         document.getElementById('saveBtn').style.display = 'none';
