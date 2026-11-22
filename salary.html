@@ -1,37 +1,126 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Зарплаты — МЕДФИНАНС ГРУПП</title>
-<link rel="stylesheet" href="assets/css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Зарплаты - МЕДФИНАНС ГРУПП</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="manifest" href="assets/manifest.json">
 </head>
 <body>
-<div class="container">
-  <h1 class="page-title">Зарплаты</h1>
-  <div class="card">
-    <button class="btn" id="addBtn">+ Добавить</button>
-    <div id="runs" style="margin-top:14px"></div>
-  </div>
-</div>
+    <div class="mobile-header">
+        <button class="burger-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">Меню</button>
+        <div class="logo-container"><img src="assets/logo.png" alt=""> МедФинанс</div>
+    </div>
+    <aside class="sidebar">
+        <div class="logo-container"><img src="assets/logo.png" alt="Логотип"><span>МЕДФИНАНС</span></div>
+        <ul class="nav-links">
+            <li><a href="app.html">Главная</a></li>
+            <li><a href="clients.html">Клиенты</a></li>
+            <li><a href="tasks.html">Задачи</a></li>
+            <li><a href="passwords.html">Пароли</a></li>
+            <li><a href="salary.html" class="active">Зарплаты</a></li>
+            <li><a href="reports.html">Отчетность</a></li>
+            <li><a href="payments.html">Платежи</a></li>
+            <li><a href="custom.html">Произвольное</a></li>
+            <li><a href="calendar.html">Календарь</a></li>
+        </ul>
+    </aside>
 
-<div class="modal-bg" id="mAdd"><div class="modal">
-  <h2>Новая выплата</h2>
-  <div class="field"><label>Вид</label>
-    <select class="input" id="fKind">
-      <option value="salary">Зарплата</option>
-      <option value="advance">Аванс</option>
-      <option value="vacation">Отпуск</option>
-      <option value="sick">Больничный</option>
-      <option value="dismissal">Увольнение</option>
-    </select>
-  </div>
-  <div class="field"><label>Дата выплаты (по графику)</label><input class="input" type="date" id="fDate"></div>
-  <div class="modal-actions">
-    <button class="btn secondary" id="mCancel">Отмена</button>
-    <button class="btn" id="mCreate">Создать</button>
-  </div>
-</div></div>
-<script type="module" src="assets/js/salary.js"></script>
+    <main class="main-content">
+        <header class="top-header">
+            <h1>Зарплаты</h1>
+            <div class="user-info" id="user-header"></div>
+        </header>
+
+        <div style="margin-bottom: 20px;">
+            <button class="btn btn-primary" id="addSalaryBtn">Добавить</button>
+        </div>
+
+        <div id="salaryRunsList" class="dashboard-grid">
+            <div style="color: var(--text-muted);">Загрузка...</div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="salaryModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="document.getElementById('salaryModal').classList.remove('active')">&times;</button>
+            <h3>Новая выплата</h3>
+            <div class="form-group">
+                <label>Тип</label>
+                <select id="salaryKind">
+                    <option value="salary">Зарплата</option>
+                    <option value="advance">Аванс</option>
+                    <option value="vacation">Отпуск</option>
+                    <option value="sick">Больничный</option>
+                    <option value="dismissal">Увольнение</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Дата выплаты</label>
+                <input type="date" id="salaryDate" required>
+            </div>
+            <button class="btn btn-primary" id="createSalaryBtn">Создать</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { checkAuth } from './assets/js/auth.js';
+        import { supabase } from './assets/js/supabase.js';
+        import { formatDate } from './assets/js/utils.js';
+
+        let currentUser = null;
+
+        async function init() {
+            currentUser = await checkAuth();
+            if (!currentUser) return;
+            loadSalaryRuns();
+        }
+
+        async function loadSalaryRuns() {
+            const { data: runs } = await supabase.from('salary_runs').select('*').order('pay_date', { ascending: false });
+            const container = document.getElementById('salaryRunsList');
+            if (!runs || runs.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted);">Нет созданных выплат</div>';
+                return;
+            }
+            container.innerHTML = runs.map(r => `
+                <div class="card">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 16px; font-weight: 600;">${r.kind === 'salary' ? 'Зарплата' : r.kind}</div>
+                            <div style="font-size: 14px; color: var(--text-muted);">${formatDate(r.pay_date)}</div>
+                        </div>
+                        <span class="badge ${r.paid ? 'badge-success' : 'badge-pending'}">${r.paid ? 'Оплачено' : 'Ожидает'}</span>
+                    </div>
+                    <div style="margin-top: 15px; text-align: right;">
+                        ${!r.paid ? `<button class="btn btn-success btn-sm pay-btn" data-id="${r.id}">Выполнено</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            document.querySelectorAll('.pay-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    if (!confirm('Вы уверены, что выплата произведена всем?')) return;
+                    await supabase.from('salary_runs').update({ paid: true }).eq('id', e.target.dataset.id);
+                    loadSalaryRuns();
+                });
+            });
+        }
+
+        document.getElementById('addSalaryBtn').addEventListener('click', () => {
+            document.getElementById('salaryModal').classList.add('active');
+        });
+
+        document.getElementById('createSalaryBtn').addEventListener('click', async () => {
+            const kind = document.getElementById('salaryKind').value;
+            const date = document.getElementById('salaryDate').value;
+            if (!date) return alert('Выберите дату');
+            await supabase.from('salary_runs').insert([{ kind, pay_date: date, created_by: currentUser.id }]);
+            document.getElementById('salaryModal').classList.remove('active');
+            loadSalaryRuns();
+        });
+
+        init();
+    </script>
 </body>
 </html>
