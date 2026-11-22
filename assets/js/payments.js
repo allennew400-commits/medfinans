@@ -1,56 +1,56 @@
-import { initHeader } from "./auth.js";
-import { supabase } from "./supabase.js";
-import { sortClients, fmtDate, escapeHtml, toast } from "./utils.js";
+import { supabase } from './supabase.js';
+import { formatDate, sortClients } from './utils.js';
 
-const ctx = await initHeader("payments.html");
-const { data } = await supabase.from("clients").select("id,short_name,kind");
-const list = sortClients(data||[]);
-document.getElementById("clients").innerHTML = list.map((c,i)=>`
-  <div class="row"><div class="num">${i+1}</div>
-    <a style="flex:1" href="#" data-open="${c.id}"><b>${escapeHtml(c.short_name)}</b></a>
-  </div>`).join("");
+let currentUser = null;
+let clients = [];
 
-document.getElementById("clients").onclick = async (e)=>{
-  const a = e.target.closest("[data-open]"); if(!a) return;
-  e.preventDefault();
-  const c = list.find(x=>x.id===a.dataset.open);
-  await openClient(c);
-};
+export async function initPayments(user) {
+    currentUser = user;
+    const { data } = await supabase.from('clients').select('id, short_name');
+    clients = sortClients(data || []);
+    const select = document.getElementById('paymentClient');
+    select.innerHTML = clients.map(c => `<option value="${c.id}">${c.short_name}</option>`).join('');
+    loadPayments();
+    setupEvents();
+}
 
-async function openClient(client){
-  const { data: pays } = await supabase.from("payments").select("*").eq("client_id", client.id).order("pay_date",{ascending:false});
-  document.getElementById("clients").innerHTML = `
-    <button class="btn secondary small" id="back">← Назад</button>
-    <h3>${escapeHtml(client.short_name)}</h3>
-    <button class="btn" id="addP">+ Добавить платёж</button>
-    <div style="margin-top:12px">
-      ${(pays||[]).map(p=>`
-        <div class="row">
-          <div style="flex:1"><b>${escapeHtml(p.title)}</b> — ${fmtDate(p.pay_date)}
-            ${p.done?`<span class="pill green">Выполнено</span>`:`<span class="pill red">Не выполнено</span>`}</div>
-          <button class="btn small ${p.done?'warn':'success'}" data-t="${p.id}" data-d="${p.done}">
-            ${p.done?"Отменить":"Выполнено"}</button>
-        </div>`).join("") || `<p class="muted">Нет платежей</p>`}
-    </div>`;
-  document.getElementById("back").onclick = ()=>location.reload();
-  document.getElementById("addP").onclick = async ()=>{
-    const title = prompt("Название платежа:"); if(!title) return;
-    const dstr = prompt("Дата (ДД.ММ.ГГГГ):");
-    const m = (dstr||"").match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if(!m){ toast("Неверная дата"); return; }
-    await supabase.from("payments").insert({
-      client_id: client.id, title,
-      pay_date: `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`,
-      created_by: ctx.user.id
+async function loadPayments() {
+    const { data: payments } = await supabase.from('payments').select('*, clients(short_name)').order('pay_date', { ascending: false });
+    const tbody = document.getElementById('paymentsTableBody');
+    if (!payments || payments.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Нет платежей</td></tr>';
+        return;
+    }
+    tbody.innerHTML = payments.map(p => `
+        <tr>
+            <td>${p.clients?.short_name || '-'}</td>
+            <td>${p.title}</td>
+            <td>${formatDate(p.pay_date)}</td>
+            <td><span class="badge ${p.done ? 'badge-success' : 'badge-pending'}">${p.done ? 'Выполнено' : 'Ожидает'}</span></td>
+            <td>${!p.done ? `<button class="btn btn-success btn-sm done-pay-btn" data-id="${p.id}">Выполнено</button>` : ''}</td>
+        </tr>
+    `).join('');
+    document.querySelectorAll('.done-pay-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            if (!confirm('Подтвердить выполнение платежа?')) return;
+            await supabase.from('payments').update({ done: true }).eq('id', e.target.dataset.id);
+            loadPayments();
+        });
     });
-    openClient(client);
-  };
-  document.querySelectorAll("[data-t]").forEach(b=>{
-    b.onclick = async ()=>{
-      const done = b.dataset.d==="true";
-      if(!confirm(done?"Отменить?":"Отметить выполненным?")) return;
-      await supabase.from("payments").update({done: !done}).eq("id", b.dataset.t);
-      openClient(client);
-    };
-  });
+}
+
+function setupEvents() {
+    document.getElementById('addPaymentBtn').addEventListener('click', () => {
+        document.getElementById('paymentModal').classList.add('active');
+    });
+
+    document.getElementById('createPaymentBtn').addEventListener('click', async () => {
+        const clientId = document.getElementById('paymentClient').value;
+        const title = document.getElementById('paymentTitle').value;
+        const date = document.getElementById('paymentDate').value;
+        if (!title || !date) return alert('Заполните название и дату');
+        await supabase.from('payments').insert([{ client_id: clientId, title, pay_date: date, created_by: currentUser.id }]);
+        document.getElementById('paymentModal').classList.remove('active');
+        loadPayments();
+    });
 }
