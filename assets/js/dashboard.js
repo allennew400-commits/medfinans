@@ -76,4 +76,20 @@ export async function loadDashboard(user) {
     } else {
         payContainer.innerHTML = '<span style="color:var(--text-muted);">Нет платежей на этой неделе</span>';
     }
+    // Заметки клиентов с датой события за 7 дней
+    const { data: notes } = await supabase.from('client_notes')
+        .select('text, event_date, clients(short_name)')
+        .not('event_date', 'is', null)
+        .gte('event_date', todayStr)
+        .lte('event_date', nextWeekStr)
+        .order('event_date');
+    
+    const notesContainer = document.getElementById('dash-notes');
+    if (notes && notes.length > 0) {
+        notesContainer.innerHTML = notes.map(n =>
+            `<div style="padding: 8px 0; border-bottom: 1px solid #eee;">${n.clients?.short_name || ''}: ${n.text} <span style="color:var(--danger); font-size:12px;">${formatDate(n.event_date)}</span></div>`
+        ).join('');
+    } else {
+        notesContainer.innerHTML = '<span style="color:var(--text-muted);">Нет заметок на эту неделю</span>';
+    }
 }
