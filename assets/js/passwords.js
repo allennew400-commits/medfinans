@@ -1,101 +1,113 @@
-import { initHeader } from "./auth.js";
-import { supabase } from "./supabase.js";
-import { sortClients, escapeHtml, copyText, toast } from "./utils.js";
+import { supabase } from './supabase.js';
+import { sortClients, copyToClipboard } from './utils.js';
 
-const ctx = await initHeader("passwords.html");
-let cat = "1c", editing = false;
-let clients = [], passwords = [];
+let currentUser = null;
+let currentCat = '1c';
+let isEditing = false;
+let allClients = [];
 
-const { data: cl } = await supabase.from("clients").select("id,short_name,kind");
-clients = sortClients(cl||[]);
-
-async function load(){
-  const { data } = await supabase.from("passwords").select("*").eq("category", cat);
-  passwords = data||[];
-  render();
+export async function initPasswords(user) {
+    currentUser = user;
+    const { data } = await supabase.from('clients').select('id, short_name');
+    allClients = sortClients(data);
+    loadPasswords();
+    setupEvents();
 }
 
-function rowFor(client){
-  const rows = passwords.filter(p=>p.client_id===client.id);
-  if(cat==="banks"){
-    if(!rows.length) rows.push({client_id:client.id, category:"banks"});
-    return rows.map((p,i)=>`
-      <div class="row">
-        <div class="num">${i+1}</div>
-        <div style="flex:1;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
-          <input class="input" placeholder="Банк" data-pid="${p.id||""}" data-f="bank_name" value="${escapeHtml(p.bank_name||"")}" ${!editing?"disabled":""}>
-          <input class="input" placeholder="Логин" data-pid="${p.id||""}" data-f="login" value="${escapeHtml(p.login||"")}" ${!editing?"disabled":""}>
-          <input class="input" placeholder="Пароль" data-pid="${p.id||""}" data-f="password" value="${escapeHtml(p.password||"")}" ${!editing?"disabled":""}>
-        </div>
-        ${!editing?`<button class="copy" data-copy="${escapeHtml(p.password||"")}">📋</button>`:""}
-      </div>`).join("") +
-      (editing?`<button class="btn small secondary" data-addbank="${client.id}">+ Добавить банк</button>`:"");
-  }
-  const p = rows[0] || {client_id:client.id, category:cat};
-  const fields = [{f:"login",l:"Логин"},{f:"password",l:"Пароль"}];
-  if(cat==="cash") fields.push({f:"cash_platform",l:"Касса"});
-  if(cat==="ecp") fields.splice(0,1);
-  return `<div class="row">
-    <div style="flex:1;display:grid;grid-template-columns:2fr ${fields.map(()=>"1fr").join(" ")};gap:6px">
-      <div><b>${escapeHtml(client.short_name)}</b></div>
-      ${fields.map(f=>`<input class="input" placeholder="${f.l}" data-pid="${p.id||""}" data-f="${f.f}" data-cid="${client.id}" value="${escapeHtml(p[f.f]||"")}" ${!editing?"disabled":""}>`).join("")}
-    </div>
-    ${!editing?`<button class="copy" data-copy="${escapeHtml(p.password||"")}">📋</button>`:""}
-  </div>`;
+async function loadPasswords() {
+    const { data: passwords } = await supabase.from('passwords').select('*').eq('category', currentCat);
+
+    const head = document.getElementById('passTableHead');
+    const body = document.getElementById('passTableBody');
+
+    let headers = ['Организация'];
+    if (currentCat === 'banks') headers.push('Банк', 'Логин', 'Пароль');
+    else if (currentCat === 'cash') headers.push('Логин', 'Пароль', 'Касса (место)');
+    else if (currentCat === 'ecp') headers.push('Пароль');
+    else headers.push('Логин', 'Пароль');
+
+    head.innerHTML = `<tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr>`;
+
+    if (allClients.length === 0) {
+        body.innerHTML = '<tr><td colspan="5">Нет клиентов</td></tr>';
+        return;
+    }
+
+    body.innerHTML = allClients.map(client => {
+        const passRecord = passwords?.find(p => p.client_id === client.id) || {};
+        let row = `<td><b>${client.short_name}</b></td>`;
+
+        if (currentCat === 'banks') {
+            row += `
+                <td>${isEditing ? `<input type="text" data-cat="banks" data-client="${client.id}" data-field="bank_name" value="${passRecord.bank_name || ''}">` : (passRecord.bank_name || '—')}</td>
+                <td>${isEditing ? `<input type="text" data-cat="banks" data-client="${client.id}" data-field="login" value="${passRecord.login || ''}">` : (passRecord.login || '—')} ${passRecord.login && !isEditing ? `<button class="copy-btn" data-copy="${passRecord.login}">Копировать</button>` : ''}</td>
+                <td>${isEditing ? `<input type="text" data-cat="banks" data-client="${client.id}" data-field="password" value="${passRecord.password || ''}">` : (passRecord.password || '—')} ${passRecord.password && !isEditing ? `<button class="copy-btn" data-copy="${passRecord.password}">Копировать</button>` : ''}</td>
+            `;
+        } else if (currentCat === 'cash') {
+            row += `
+                <td>${isEditing ? `<input type="text" data-cat="cash" data-client="${client.id}" data-field="login" value="${passRecord.login || ''}">` : (passRecord.login || '—')} ${passRecord.login && !isEditing ? `<button class="copy-btn" data-copy="${passRecord.login}">Копировать</button>` : ''}</td>
+                <td>${isEditing ? `<input type="text" data-cat="cash" data-client="${client.id}" data-field="password" value="${passRecord.password || ''}">` : (passRecord.password || '—')} ${passRecord.password && !isEditing ? `<button class="copy-btn" data-copy="${passRecord.password}">Копировать</button>` : ''}</td>
+                <td>${isEditing ? `<input type="text" data-cat="cash" data-client="${client.id}" data-field="cash_platform" value="${passRecord.cash_platform || ''}">` : (passRecord.cash_platform || '—')}</td>
+            `;
+        } else if (currentCat === 'ecp') {
+            row += `<td>${isEditing ? `<input type="text" data-cat="ecp" data-client="${client.id}" data-field="password" value="${passRecord.password || ''}">` : (passRecord.password || '—')} ${passRecord.password && !isEditing ? `<button class="copy-btn" data-copy="${passRecord.password}">Копировать</button>` : ''}</td>`;
+        } else {
+            row += `
+                <td>${isEditing ? `<input type="text" data-cat="${currentCat}" data-client="${client.id}" data-field="login" value="${passRecord.login || ''}">` : (passRecord.login || '—')} ${passRecord.login && !isEditing ? `<button class="copy-btn" data-copy="${passRecord.login}">Копировать</button>` : ''}</td>
+                <td>${isEditing ? `<input type="text" data-cat="${currentCat}" data-client="${client.id}" data-field="password" value="${passRecord.password || ''}">` : (passRecord.password || '—')} ${passRecord.password && !isEditing ? `<button class="copy-btn" data-copy="${passRecord.password}">Копировать</button>` : ''}</td>
+            `;
+        }
+
+        return `<tr>${row}</tr>`;
+    }).join('');
+
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => copyToClipboard(e.target.dataset.copy, e.target));
+    });
 }
 
-function render(){
-  document.getElementById("table").innerHTML = clients.map(rowFor).join("") || `<p class="muted">Нет клиентов</p>`;
-  document.getElementById("table").onclick = async (e)=>{
-    const c = e.target.closest("[data-copy]");
-    if(c) copyText(c.dataset.copy);
-    const ab = e.target.closest("[data-addbank]");
-    if(ab){
-      const { data } = await supabase.from("passwords").insert({ category:"banks", client_id: ab.dataset.addbank, updated_by: ctx.user.id }).select().single();
-      passwords.push(data); render();
-    }
-  };
-}
+function setupEvents() {
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            currentCat = e.target.dataset.cat;
+            isEditing = false;
+            document.getElementById('editPassBtn').style.display = 'inline-flex';
+            document.getElementById('savePassBtn').style.display = 'none';
+            loadPasswords();
+        });
+    });
 
-document.getElementById("editToggle").onclick = ()=>{
-  editing = true;
-  document.getElementById("editToggle").classList.add("hidden");
-  document.getElementById("saveAll").classList.remove("hidden");
-  render();
-};
-document.getElementById("saveAll").onclick = async ()=>{
-  const inputs = document.querySelectorAll("[data-pid]");
-  const updates = {};
-  inputs.forEach(inp=>{
-    const pid = inp.dataset.pid;
-    const f = inp.dataset.f;
-    if(!pid){
-      if(!updates["new_"+inp.dataset.cid]) updates["new_"+inp.dataset.cid] = { category: cat, client_id: inp.dataset.cid, updated_by: ctx.user.id };
-      updates["new_"+inp.dataset.cid][f] = inp.value;
-    } else {
-      updates[pid] = updates[pid] || {id:pid};
-      updates[pid][f] = inp.value;
-    }
-  });
-  for(const k of Object.keys(updates)){
-    const u = updates[k];
-    if(k.startsWith("new_")) await supabase.from("passwords").insert(u);
-    else {
-      const { id, ...rest } = u;
-      await supabase.from("passwords").update({...rest, updated_at:new Date().toISOString()}).eq("id", id);
-    }
-  }
-  toast("Сохранено"); editing = false;
-  document.getElementById("editToggle").classList.remove("hidden");
-  document.getElementById("saveAll").classList.add("hidden");
-  load();
-};
-document.getElementById("catTabs").onclick = e=>{
-  const t = e.target.closest(".tab"); if(!t) return;
-  document.querySelectorAll("#catTabs .tab").forEach(x=>x.classList.remove("active"));
-  t.classList.add("active"); cat = t.dataset.c; editing = false;
-  document.getElementById("editToggle").classList.remove("hidden");
-  document.getElementById("saveAll").classList.add("hidden");
-  load();
-};
-load();
+    document.getElementById('editPassBtn').addEventListener('click', () => {
+        isEditing = true;
+        loadPasswords();
+        document.getElementById('editPassBtn').style.display = 'none';
+        document.getElementById('savePassBtn').style.display = 'inline-flex';
+    });
+
+    document.getElementById('savePassBtn').addEventListener('click', async () => {
+        const inputs = document.querySelectorAll('[data-client]');
+        const updates = {};
+
+        inputs.forEach(input => {
+            const clientId = input.dataset.client;
+            if (!updates[clientId]) updates[clientId] = { client_id: clientId, category: currentCat };
+            updates[clientId][input.dataset.field] = input.value;
+        });
+
+        for (const id in updates) {
+            const { data } = await supabase.from('passwords').select('id').eq('client_id', id).eq('category', currentCat).maybeSingle();
+            if (data) {
+                await supabase.from('passwords').update(updates[id]).eq('id', data.id);
+            } else {
+                await supabase.from('passwords').insert([updates[id]]);
+            }
+        }
+
+        isEditing = false;
+        document.getElementById('editPassBtn').style.display = 'inline-flex';
+        document.getElementById('savePassBtn').style.display = 'none';
+        loadPasswords();
+    });
+}
