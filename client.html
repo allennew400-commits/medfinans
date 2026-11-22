@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Клиент — МЕДФИНАНС ГРУПП</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="container">
+  <a href="clients.html" class="btn secondary small">← К списку</a>
+  <div class="card" style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <h1 class="page-title" style="margin:0" id="title">Клиент</h1>
+      <div id="editBtns">
+        <button class="btn" id="editBtn">Редактировать</button>
+        <button class="btn success hidden" id="saveBtn">Сохранить</button>
+        <button class="btn secondary hidden" id="cancelBtn">Отмена</button>
+      </div>
+    </div>
+    <div id="form" style="margin-top:14px"></div>
+    <div id="notesBlock" style="margin-top:22px"></div>
+  </div>
+</div>
+<script type="module" src="assets/js/client.js"></script>
+</body>
+</html>

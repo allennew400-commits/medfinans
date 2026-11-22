@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Задачи — МЕДФИНАНС ГРУПП</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="container">
+  <h1 class="page-title">Задачи</h1>
+  <div class="tabs">
+    <button class="tab active" data-s="common">Общие</button>
+    <button class="tab" data-s="personal">Мои задачи</button>
+    <button class="tab" data-s="archive">Архив</button>
+  </div>
+  <div class="card">
+    <button class="btn" id="addBtn">+ Добавить задачу</button>
+    <div id="list" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2 id="modalTitle">Новая задача</h2>
+    <div class="field"><label>Текст</label><textarea class="input" id="mText"></textarea></div>
+    <div class="field"><label>Дата выполнения</label><input class="input" type="date" id="mDate"></div>
+    <div class="field"><label>Повтор</label>
+      <select class="input" id="mRec">
+        <option value="none">Нет</option>
+        <option value="daily">Ежедневно</option>
+        <option value="weekly">Еженедельно</option>
+        <option value="monthly">Ежемесячно</option>
+      </select>
+    </div>
+    <div class="field" id="assigneeField"><label>Для кого</label><select class="input" id="mAssignee"></select></div>
+    <div class="modal-actions">
+      <button class="btn secondary" id="mCancel">Отмена</button>
+      <button class="btn" id="mSave">Создать</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="assets/js/tasks.js"></script>
+</body>
+</html>

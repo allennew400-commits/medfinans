@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Зарплаты — МЕДФИНАНС ГРУПП</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="container">
+  <h1 class="page-title">Зарплаты</h1>
+  <div class="card">
+    <button class="btn" id="addBtn">+ Добавить</button>
+    <div id="runs" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mAdd"><div class="modal">
+  <h2>Новая выплата</h2>
+  <div class="field"><label>Вид</label>
+    <select class="input" id="fKind">
+      <option value="salary">Зарплата</option>
+      <option value="advance">Аванс</option>
+      <option value="vacation">Отпуск</option>
+      <option value="sick">Больничный</option>
+      <option value="dismissal">Увольнение</option>
+    </select>
+  </div>
+  <div class="field"><label>Дата выплаты (по графику)</label><input class="input" type="date" id="fDate"></div>
+  <div class="modal-actions">
+    <button class="btn secondary" id="mCancel">Отмена</button>
+    <button class="btn" id="mCreate">Создать</button>
+  </div>
+</div></div>
+<script type="module" src="assets/js/salary.js"></script>
+</body>
+</html>

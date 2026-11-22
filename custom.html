@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Произвольное — МЕДФИНАНС ГРУПП</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="container">
+  <h1 class="page-title">Произвольное</h1>
+  <div class="card">
+    <button class="btn" id="addBtn">+ Добавить</button>
+    <div id="lists" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="mAdd"><div class="modal">
+  <h2>Новый список</h2>
+  <div class="field"><label>Название</label><input class="input" id="fTitle"></div>
+  <div class="field"><label>Дата (необязательно)</label><input class="input" type="date" id="fDate"></div>
+  <div class="field"><label>Клиенты</label>
+    <label style="display:block"><input type="checkbox" id="selAll"> Выбрать все</label>
+    <div id="clientChecks" style="max-height:240px;overflow:auto;margin-top:8px"></div>
+  </div>
+  <div class="modal-actions">
+    <button class="btn secondary" id="mCancel">Отмена</button>
+    <button class="btn" id="mCreate">Создать</button>
+  </div>
+</div></div>
+<script type="module" src="assets/js/custom.js"></script>
+</body>
+</html>
