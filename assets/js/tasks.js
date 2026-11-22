@@ -1,89 +1,94 @@
-import { initHeader } from "./auth.js";
-import { supabase } from "./supabase.js";
-import { fmtDate, escapeHtml, toast } from "./utils.js";
+import { supabase } from './supabase.js';
+import { formatDate } from './utils.js';
 
-const ctx = await initHeader("tasks.html");
-const uid = ctx.user.id;
-let scope = "common";
-let profileMap = {};
+let currentUser = null;
+let currentScope = 'common';
 
-const { data: profs } = await supabase.from("profiles").select("id,full_name");
-(profs||[]).forEach(p=>profileMap[p.id]=p.full_name);
-document.getElementById("mAssignee").innerHTML = `<option value="">Для всех (общая)</option>` + (profs||[]).map(p=>`<option value="${p.id}">${escapeHtml(p.full_name)}</option>`).join("");
-
-async function render(){
-  const list = document.getElementById("list");
-  let q = supabase.from("tasks").select("*");
-  if(scope==="archive"){
-    q = q.eq("completed",true).order("completed_at",{ascending:false});
-  } else {
-    q = q.eq("completed",false).eq("scope", scope==="common"?"common":"personal");
-    if(scope==="personal") q = q.eq("assignee", uid);
-    q = q.order("due_date",{ascending:true, nullsFirst:false});
-  }
-  const { data } = await q;
-  const rows = data||[];
-  
-  list.innerHTML = rows.length ? rows.map(t=>`
-    <div class="row">
-      <div style="flex:1">
-        <div style="font-weight:600; font-size:16px; margin-bottom:4px;">${escapeHtml(t.text)}</div>
-        <div style="color:var(--text-muted); font-size:13px;">
-          📅 ${t.due_date?fmtDate(t.due_date):"Без даты"} · 👤 Создал: ${escapeHtml(profileMap[t.created_by]||"—")}
-          ${t.scope==="personal" && scope==="common" ? ` · 🎯 Для: ${escapeHtml(profileMap[t.assignee]||"—")}` : ""}
-          ${t.recurrence!=="none"?` · 🔁 ${t.recurrence}`:""}
-          ${t.completed?`<br>✅ Выполнено ${fmtDate((t.completed_at||"").slice(0,10))} — ${escapeHtml(profileMap[t.completed_by]||"")}`:""}
-        </div>
-      </div>
-      ${!t.completed?`<button class="btn success small" data-done="${t.id}">Выполнить</button>`:""}
-    </div>`).join("") : `<p style="color:var(--text-muted); text-align:center; padding:20px;">Задач нет</p>`;
-
-  list.onclick = async (e)=>{
-    const b = e.target.closest("[data-done]"); if(!b) return;
-    const t = rows.find(x=>x.id===b.dataset.done);
-    await supabase.from("tasks").update({ completed: true, completed_by: uid, completed_at: new Date().toISOString() }).eq("id", t.id);
-    if(t.recurrence && t.recurrence!=="none" && t.due_date){
-      const d = new Date(t.due_date+"T00:00:00");
-      if(t.recurrence==="daily") d.setDate(d.getDate()+1);
-      if(t.recurrence==="weekly") d.setDate(d.getDate()+7);
-      if(t.recurrence==="monthly") d.setMonth(d.getMonth()+1);
-      await supabase.from("tasks").insert({ scope: t.scope, text: t.text, due_date: d.toISOString().slice(0,10), assignee: t.assignee, recurrence: t.recurrence, created_by: uid });
-    }
-    render();
-  };
+export async function initTasks(user) {
+    currentUser = user;
+    loadTasks();
+    setupEvents();
 }
-render();
 
-document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
-  document.querySelectorAll(".tab").forEach(x => {
-    x.classList.remove("active");
-    x.style.background = "transparent";
-    x.style.color = "var(--text-muted)";
-  });
-  t.classList.add("active");
-  t.style.background = "var(--primary)";
-  t.style.color = "white";
-  scope = t.dataset.s; render();
-});
+async function loadTasks() {
+    let query = supabase.from('tasks').select('*, profiles:created_by(full_name), completer:completed_by(full_name)');
 
-document.getElementById("addBtn").onclick = ()=>{
-  document.getElementById("modal").classList.add("open");
-  document.getElementById("mText").value = "";
-  document.getElementById("mDate").value = "";
-  document.getElementById("mRec").value = "none";
-  document.getElementById("mAssignee").value = scope==="personal" ? uid : "";
-  document.getElementById("assigneeField").style.display = scope==="personal" ? "none" : "block";
-};
-document.getElementById("mCancel").onclick = ()=>document.getElementById("modal").classList.remove("open");
-document.getElementById("mSave").onclick = async ()=>{
-  const text = document.getElementById("mText").value.trim();
-  if(!text){ toast("Введите текст"); return; }
-  const due = document.getElementById("mDate").value || null;
-  const rec = document.getElementById("mRec").value;
-  let assignee = document.getElementById("mAssignee").value || null;
-  let s = scope==="archive" ? "common" : scope;
-  if(scope==="personal" || assignee){ s="personal"; assignee = assignee||uid; }
-  await supabase.from("tasks").insert({ scope: s, text, due_date: due, recurrence: rec, assignee: s==="personal"?assignee:null, created_by: uid });
-  document.getElementById("modal").classList.remove("open");
-  render();
-};
+    if (currentScope === 'common') {
+        query = query.eq('scope', 'common');
+    } else {
+        query = query.eq('scope', 'personal').eq('assignee', currentUser.id);
+    }
+
+    const { data: tasks } = await query.order('completed', { ascending: true }).order('due_date', { ascending: true });
+
+    const container = document.getElementById('tasksList');
+    if (!tasks || tasks.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted);">Задач нет</div>';
+        return;
+    }
+
+    container.innerHTML = tasks.map(t => `
+        <div class="card" style="border-left: 4px solid ${t.completed ? 'var(--success)' : 'var(--primary)'};">
+            <div style="font-size: 16px; font-weight: 500; margin-bottom: 10px; ${t.completed ? 'text-decoration: line-through; color: var(--text-muted);' : ''}">${t.text}</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">
+                ${formatDate(t.due_date)} | Создал: ${t.profiles?.full_name || '—'}
+            </div>
+            ${t.completed
+                ? `<div style="font-size: 12px; color: var(--success); font-weight: bold;">Выполнено ${t.completer?.full_name} (${formatDate(t.completed_at)})</div>`
+                : `<button class="btn btn-success btn-sm complete-btn" data-id="${t.id}">Выполнить</button>`
+            }
+        </div>
+    `).join('');
+
+    document.querySelectorAll('.complete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            const id = e.target.dataset.id;
+            await supabase.from('tasks').update({
+                completed: true,
+                completed_by: currentUser.id,
+                completed_at: new Date().toISOString()
+            }).eq('id', id);
+            loadTasks();
+        });
+    });
+}
+
+function setupEvents() {
+    document.getElementById('addTaskBtn').addEventListener('click', () => {
+        document.getElementById('taskModal').classList.add('active');
+        document.getElementById('assigneeGroup').style.display = currentScope === 'personal' ? 'none' : 'block';
+    });
+
+    document.getElementById('saveTaskBtn').addEventListener('click', async () => {
+        const text = document.getElementById('taskText').value;
+        const dueDate = document.getElementById('taskDueDate').value;
+        const recurrence = document.getElementById('taskRecurrence').value;
+        const assigneeSelect = document.getElementById('taskAssignee').value;
+
+        if (!text) return alert('Введите текст задачи');
+
+        const taskData = {
+            text,
+            due_date: dueDate || null,
+            recurrence,
+            scope: currentScope,
+            created_by: currentUser.id,
+            assignee: currentScope === 'personal' ? currentUser.id : (assigneeSelect === 'personal' ? currentUser.id : null)
+        };
+
+        await supabase.from('tasks').insert([taskData]);
+        document.getElementById('taskText').value = '';
+        document.getElementById('taskDueDate').value = '';
+        document.getElementById('taskModal').classList.remove('active');
+        loadTasks();
+    });
+
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            currentScope = e.target.dataset.scope;
+            loadTasks();
+        });
+    });
+}
