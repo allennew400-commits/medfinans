@@ -1,5 +1,6 @@
 import { supabase } from './supabase.js';
 import { formatDate, copyToClipboard } from './utils.js';
+import { formatPhone, attachPhoneMask } from './phone.js';
 
 let clientId = null;
 let currentUser = null;
@@ -32,8 +33,8 @@ const fields = [
     { key: 'okved', label: 'ОКВЭД', type: 'text' },
     { key: 'edo_astral', label: 'ЭДО Калуга Астрал', type: 'text' },
     { key: 'edo_sbis', label: 'ЭДО СБИС', type: 'text' },
-    { key: 'salary_day', label: 'Дата зарплаты (число)', type: 'select', options: [5,10,15,20,25,30] },
-    { key: 'advance_day', label: 'Дата аванса (число)', type: 'select', options: [5,10,15,20,25,30] },
+    { key: 'salary_day', label: 'Дата зарплаты (число)', type: 'select', options: [5, 10, 15, 20, 25, 30] },
+    { key: 'advance_day', label: 'Дата аванса (число)', type: 'select', options: [5, 10, 15, 20, 25, 30] },
     { key: 'work_start_date', label: 'Дата начала работы с клиникой', type: 'date' }
 ];
 
@@ -48,8 +49,10 @@ export async function initClient(user) {
         document.getElementById('clientTitle').textContent = 'Новый клиент';
         document.getElementById('editBtn').style.display = 'none';
         document.getElementById('createBtn').style.display = 'inline-flex';
-        document.getElementById('addNoteBtn').style.display = 'none';
-        document.getElementById('notesList').style.display = 'none';
+        const addNoteBtn = document.getElementById('addNoteBtn');
+        if (addNoteBtn) addNoteBtn.style.display = 'none';
+        const notesList = document.getElementById('notesList');
+        if (notesList) notesList.style.display = 'none';
         renderFields({});
         setupCreateEvent();
     } else {
@@ -73,13 +76,14 @@ function renderFields(client) {
     fields.forEach(f => {
         let val = client[f.key] || '';
         if (f.type === 'date' && val) val = formatDate(val);
+        if (f.key === 'director_phone' && val) val = formatPhone(val);
 
         html += `<div>
             <label>${f.label}${f.required ? ' *' : ''}</label>
             <div style="display: flex; gap: 5px; align-items: center;">
                 ${(isEditing || isCreating)
                     ? (f.type === 'select'
-                        ? `<select data-key="${f.key}">${f.options.map(o => `<option value="${o}" ${String(val).includes(String(o)) ? 'selected' : ''}>${o}${f.key.includes('day')?' число':''}</option>`).join('')}</select>`
+                        ? `<select data-key="${f.key}">${f.options.map(o => `<option value="${o}" ${String(val).includes(String(o)) ? 'selected' : ''}>${o}${f.key.includes('day') ? ' число' : ''}</option>`).join('')}</select>`
                         : `<input type="${f.type}" data-key="${f.key}" value="${client[f.key] || ''}">`)
                     : `<span id="val-${f.key}" style="font-weight: 500; word-break: break-all;">${val || '—'}</span>
                        ${val ? `<button class="copy-btn" data-copy="${val}">Копировать</button>` : ''}`
@@ -111,12 +115,22 @@ function renderFields(client) {
     document.querySelectorAll('.copy-btn').forEach(btn => {
         btn.addEventListener('click', (e) => copyToClipboard(e.target.dataset.copy, e.target));
     });
+
+    // Маска для телефона
+    const phoneInput = document.querySelector('[data-key="director_phone"]');
+    if (phoneInput) {
+        attachPhoneMask(phoneInput);
+    }
 }
 
 function collectFormData() {
     const data = {};
     document.querySelectorAll('[data-key]').forEach(el => {
-        data[el.dataset.key] = el.value || null;
+        let value = el.value || null;
+        if (el.dataset.key === 'director_phone' && value) {
+            value = formatPhone(value);
+        }
+        data[el.dataset.key] = value;
     });
     return data;
 }
@@ -213,6 +227,7 @@ async function loadNotes() {
         .order('created_at', { ascending: false });
 
     const container = document.getElementById('notesList');
+    if (!container) return;
     if (!notes || notes.length === 0) {
         container.innerHTML = '<div style="color: var(--text-muted);">Пока нет заметок</div>';
         return;
