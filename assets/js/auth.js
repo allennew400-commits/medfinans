@@ -14,10 +14,7 @@ if (form) {
     err.textContent = "";
     
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      err.textContent = "Неверный логин или пароль";
-      return;
-    }
+if (error) { err.textContent = error.message; return; }
     location.href = "app.html";
   };
 }
