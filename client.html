@@ -8,18 +8,20 @@
 </head>
 <body>
 <div class="container">
-  <a href="clients.html" class="btn secondary small">← К списку</a>
-  <div class="card" style="margin-top:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <h1 class="page-title" style="margin:0" id="title">Клиент</h1>
+  <a href="clients.html" class="btn secondary small" style="margin-bottom:24px; display:inline-block;">← К списку</a>
+  
+  <div class="card">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:24px;">
+      <h1 class="page-title" id="title">Клиент</h1>
       <div id="editBtns">
-        <button class="btn" id="editBtn">Редактировать</button>
-        <button class="btn success hidden" id="saveBtn">Сохранить</button>
+        <button class="btn" id="editBtn">✏️ Редактировать</button>
+        <button class="btn success hidden" id="saveBtn">💾 Сохранить</button>
         <button class="btn secondary hidden" id="cancelBtn">Отмена</button>
       </div>
     </div>
-    <div id="form" style="margin-top:14px"></div>
-    <div id="notesBlock" style="margin-top:22px"></div>
+    
+    <div id="form" class="grid grid-2"></div>
+    <div id="notesBlock" style="margin-top:32px;"></div>
   </div>
 </div>
 <script type="module" src="assets/js/client.js"></script>
