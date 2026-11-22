@@ -5,8 +5,28 @@ let currentUser = null;
 let currentDate = new Date();
 let events = [];
 
-const months = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const months = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+];
 const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+// Федеральные праздники РФ (месяц-день)
+const holidays = [
+    '01-01', '01-02', '01-03', '01-04', '01-05', '01-06', '01-07', '01-08',
+    '02-23', '03-08', '05-01', '05-09', '06-12', '11-04'
+];
+
+function isHoliday(dateStr) {
+    const md = dateStr.slice(5);
+    return holidays.includes(md);
+}
+
+function isWeekend(dateStr) {
+    const d = new Date(dateStr);
+    const day = d.getDay();
+    return day === 0 || day === 6;
+}
 
 export async function initCalendar(user) {
     currentUser = user;
@@ -38,10 +58,12 @@ function renderCalendar() {
 
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    let startDay = firstDay.getDay() === 0 ? 7 : firstDay.getDay();
+    const startDay = firstDay.getDay() === 0 ? 7 : firstDay.getDay();
 
     const grid = document.getElementById('calendarGrid');
-    let html = weekdays.map(d => `<div style="font-weight: 600; text-align: center; padding: 5px; font-size: 12px; color: var(--text-muted);">${d}</div>`).join('');
+    let html = weekdays.map(d =>
+        `<div style="font-weight: 700; text-align: center; padding: 6px; font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;">${d}</div>`
+    ).join('');
 
     for (let i = 1; i < startDay; i++) {
         html += `<div></div>`;
@@ -51,25 +73,61 @@ function renderCalendar() {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dayEvents = events.filter(e => e.date === dateStr);
         const hasEvents = dayEvents.length > 0;
+        const holiday = isHoliday(dateStr);
+        const weekend = isWeekend(dateStr);
+
+        let bgColor = 'var(--surface)';
+        let textColor = 'var(--text-main)';
+        let borderColor = 'var(--border-soft)';
+
+        if (holiday) {
+            bgColor = 'var(--danger-soft)';
+            textColor = 'var(--danger)';
+            borderColor = 'rgba(229, 72, 77, 0.25)';
+        } else if (weekend) {
+            bgColor = 'var(--surface-soft)';
+            textColor = 'var(--text-muted)';
+        } else if (hasEvents) {
+            bgColor = 'var(--primary-soft)';
+            borderColor = 'rgba(91, 91, 214, 0.25)';
+        }
+
         html += `
-            <div class="cal-day" data-date="${dateStr}" style="padding: 8px; border-radius: 8px; cursor: pointer; border: 1px solid var(--border); min-height: 50px; position: relative; background: ${hasEvents ? 'rgba(99,102,241,0.05)' : 'white'};">
-                <div style="font-weight: 500;">${day}</div>
-                ${hasEvents ? `<div style="width: 6px; height: 6px; border-radius: 50%; background: var(--primary); position: absolute; bottom: 5px; right: 5px;"></div>` : ''}
+            <div class="cal-day" data-date="${dateStr}" style="padding: 8px; border-radius: 10px; cursor: pointer; border: 1px solid ${borderColor}; min-height: 54px; position: relative; background: ${bgColor}; color: ${textColor}; transition: all 0.2s;">
+                <div style="font-weight: 700; font-size: 14px;">${day}</div>
+                ${hasEvents ? `<div style="width: 7px; height: 7px; border-radius: 50%; background: var(--primary); position: absolute; bottom: 6px; right: 6px;"></div>` : ''}
             </div>
         `;
     }
+
     grid.innerHTML = html;
 
     document.querySelectorAll('.cal-day').forEach(el => {
         el.addEventListener('click', () => {
             const date = el.dataset.date;
             const dayEvents = events.filter(e => e.date === date);
+            const holiday = isHoliday(date);
+            const weekend = isWeekend(date);
+
             document.getElementById('selectedDateTitle').textContent = formatDate(date);
+
             const list = document.getElementById('eventsList');
+            let extra = '';
+            if (holiday) extra = '<div style="color: var(--danger); font-weight: 700; margin-bottom: 8px;">Праздничный день</div>';
+            else if (weekend) extra = '<div style="color: var(--text-muted); font-weight: 700; margin-bottom: 8px;">Выходной день</div>';
+
             if (dayEvents.length === 0) {
-                list.innerHTML = '<div style="color: var(--text-muted);">Событий нет</div>';
+                list.innerHTML = extra + '<div style="color: var(--text-muted);">Событий нет</div>';
             } else {
-                list.innerHTML = dayEvents.map(e => `<div style="padding: 8px 0; border-bottom: 1px solid var(--border);">${e.title}</div>`).join('');
+                list.innerHTML = extra + dayEvents.map(e => {
+                    let color = 'var(--text-main)';
+                    if (e.type === 'task') color = 'var(--primary)';
+                    if (e.type === 'salary') color = 'var(--success)';
+                    if (e.type === 'report') color = 'var(--info)';
+                    if (e.type === 'payment') color = 'var(--warning)';
+                    if (e.type === 'note') color = 'var(--text-muted)';
+                    return `<div style="padding: 8px 0; border-bottom: 1px solid var(--border-soft); color: ${color}; font-weight: 500;">${e.title}</div>`;
+                }).join('');
             }
             document.getElementById('dayEvents').style.display = 'block';
         });
@@ -86,18 +144,4 @@ function setupEvents() {
         currentDate.setMonth(currentDate.getMonth() + 1);
         renderCalendar();
     });
-    const holidays = [
-    '01-01', '01-02', '01-03', '01-04', '01-05', '01-06', '01-07', '01-08',
-    '02-23', '03-08', '05-01', '05-09', '06-12', '11-04'
-    ];
-    
-    function isHoliday(dateStr) {
-        const md = dateStr.slice(5); // MM-DD
-        return holidays.includes(md);
-    }
-    
-    function isWeekend(dateStr) {
-        const d = new Date(dateStr);
-        return d.getDay() === 0 || d.getDay() === 6;
-    }
 }
