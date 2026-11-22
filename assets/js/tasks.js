@@ -91,4 +91,52 @@ function setupEvents() {
             loadTasks();
         });
     });
+    async function processRecurringTasks() {
+    const today = new Date().toISOString().split('T')[0];
+    const { data: recurring } = await supabase.from('tasks')
+        .select('*')
+        .neq('recurrence', 'none')
+        .eq('completed', true);
+
+    if (!recurring || recurring.length === 0) return;
+
+    for (const task of recurring) {
+        const lastDate = new Date(task.due_date || task.created_at);
+        let nextDate = new Date(lastDate);
+        let shouldCreate = false;
+
+        if (task.recurrence === 'daily') {
+            nextDate.setDate(nextDate.getDate() + 1);
+            shouldCreate = true;
+        } else if (task.recurrence === 'weekly') {
+            nextDate.setDate(nextDate.getDate() + 7);
+            shouldCreate = true;
+        } else if (task.recurrence === 'monthly') {
+            nextDate.setMonth(nextDate.getMonth() + 1);
+            shouldCreate = true;
+        }
+
+        const nextDateStr = nextDate.toISOString().split('T')[0];
+        if (shouldCreate && nextDateStr <= today) {
+            // Проверяем, нет ли уже такой задачи на эту дату
+            const { data: existing } = await supabase.from('tasks')
+                .select('id')
+                .eq('text', task.text)
+                .eq('due_date', nextDateStr)
+                .eq('scope', task.scope)
+                .maybeSingle();
+
+            if (!existing) {
+                await supabase.from('tasks').insert([{
+                    text: task.text,
+                    scope: task.scope,
+                    assignee: task.assignee,
+                    due_date: nextDateStr,
+                    recurrence: task.recurrence,
+                    created_by: task.created_by
+                }]);
+            }
+        }
+    }
+}
 }
