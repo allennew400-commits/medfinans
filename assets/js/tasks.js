@@ -23,20 +23,20 @@ async function render(){
   }
   const { data } = await q;
   const rows = data||[];
+  
   list.innerHTML = rows.length ? rows.map(t=>`
     <div class="row">
       <div style="flex:1">
-        <div style="font-weight:600">${escapeHtml(t.text)}</div>
-        <div class="muted">
-          ${t.due_date?fmtDate(t.due_date):"—"}
-          · создал: ${escapeHtml(profileMap[t.created_by]||"—")}
-          ${t.scope==="personal" && scope==="common" ? ` · для: ${escapeHtml(profileMap[t.assignee]||"—")}` : ""}
+        <div style="font-weight:600; font-size:16px; margin-bottom:4px;">${escapeHtml(t.text)}</div>
+        <div style="color:var(--text-muted); font-size:13px;">
+          📅 ${t.due_date?fmtDate(t.due_date):"Без даты"} · 👤 Создал: ${escapeHtml(profileMap[t.created_by]||"—")}
+          ${t.scope==="personal" && scope==="common" ? ` · 🎯 Для: ${escapeHtml(profileMap[t.assignee]||"—")}` : ""}
           ${t.recurrence!=="none"?` · 🔁 ${t.recurrence}`:""}
-          ${t.completed?`<br>✅ выполнено ${fmtDate((t.completed_at||"").slice(0,10))} — ${escapeHtml(profileMap[t.completed_by]||"")}`:""}
+          ${t.completed?`<br>✅ Выполнено ${fmtDate((t.completed_at||"").slice(0,10))} — ${escapeHtml(profileMap[t.completed_by]||"")}`:""}
         </div>
       </div>
       ${!t.completed?`<button class="btn success small" data-done="${t.id}">Выполнить</button>`:""}
-    </div>`).join("") : `<p class="muted">Пусто</p>`;
+    </div>`).join("") : `<p style="color:var(--text-muted); text-align:center; padding:20px;">Задач нет</p>`;
 
   list.onclick = async (e)=>{
     const b = e.target.closest("[data-done]"); if(!b) return;
@@ -55,8 +55,15 @@ async function render(){
 render();
 
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
-  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
-  t.classList.add("active"); scope = t.dataset.s; render();
+  document.querySelectorAll(".tab").forEach(x => {
+    x.classList.remove("active");
+    x.style.background = "transparent";
+    x.style.color = "var(--text-muted)";
+  });
+  t.classList.add("active");
+  t.style.background = "var(--primary)";
+  t.style.color = "white";
+  scope = t.dataset.s; render();
 });
 
 document.getElementById("addBtn").onclick = ()=>{
