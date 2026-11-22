@@ -1,157 +1,149 @@
-import { initHeader } from "./auth.js";
-import { supabase } from "./supabase.js";
-import { fmtDate, escapeHtml, copyText, toast } from "./utils.js";
+import { supabase } from './supabase.js';
+import { formatDate, copyToClipboard } from './utils.js';
 
-const ctx = await initHeader("clients.html");
+let clientId = null;
+let currentUser = null;
+let isEditing = false;
 
-const params = new URLSearchParams(location.search);
-const id = params.get("id");
-let editing = !id;
-let current = {};
-
-const FIELDS = [
-  {k:"kind", l:"Тип", t:"select", opts:["ООО","ИП"]},
-  {k:"short_name", l:"Сокращённое наименование *", req:true},
-  {k:"full_name", l:"Полное наименование"},
-  {k:"inn", l:"ИНН"}, {k:"kpp", l:"КПП"}, {k:"ogrn", l:"ОГРН"},
-  {k:"director_role", l:"Должность директора", t:"select", opts:["Директор","Генеральный директор"]},
-  {k:"director_name", l:"ФИО директора"},
-  {k:"director_birthday", l:"Дата рождения директора", t:"date"},
-  {k:"director_phone", l:"Телефон директора"},
-  {k:"email_1c", l:"Почта (1С)"},
-  {k:"email_work", l:"Рабочая почта"},
-  {k:"registration_date", l:"Дата регистрации", t:"date"},
-  {k:"registration_authority", l:"Регистрирующий орган"},
-  {k:"tax_type", l:"Вид налогообложения"},
-  {k:"bank_bik", l:"Банк (БИК)"},
-  {k:"account_number", l:"Номер счёта"},
-  {k:"legal_address", l:"Юридический адрес"},
-  {k:"actual_address", l:"Фактический адрес"},
-  {k:"tax_office", l:"Налоговая инспекция"},
-  {k:"okopf", l:"ОКОПФ"}, {k:"okfs", l:"ОКФС"}, {k:"okved", l:"ОКВЭД"},
-  {k:"edo_astral", l:"ЭДО Калуга Астрал"},
-  {k:"edo_sbis", l:"ЭДО СБИС"},
-  {k:"work_start_date", l:"Начало работы", t:"date"},
-  {k:"salary_day", l:"Дата зарплаты", t:"select", opts:[5,10,15,20,25,30]},
-  {k:"advance_day", l:"Дата аванса", t:"select", opts:[5,10,15,20,25,30]},
+const fields = [
+    { key: 'short_name', label: 'Сокращенное наименование', type: 'text', required: true },
+    { key: 'full_name', label: 'Полное наименование', type: 'text' },
+    { key: 'inn', label: 'ИНН', type: 'text' },
+    { key: 'kpp', label: 'КПП', type: 'text' },
+    { key: 'ogrn', label: 'ОГРН', type: 'text' },
+    { key: 'director_role', label: 'Должность директора', type: 'select', options: ['Директор', 'Генеральный директор'] },
+    { key: 'director_name', label: 'ФИО Директора', type: 'text' },
+    { key: 'director_birthday', label: 'Дата рождения директора', type: 'date' },
+    { key: 'director_phone', label: 'Телефон директора', type: 'text' },
+    { key: 'email_1c', label: 'Почта 1С', type: 'text' },
+    { key: 'email_work', label: 'Рабочая почта', type: 'text' },
+    { key: 'registration_date', label: 'Дата регистрации', type: 'date' },
+    { key: 'registration_authority', label: 'Регистрирующий орган', type: 'text' },
+    { key: 'tax_type', label: 'Вид налогообложения', type: 'text' },
+    { key: 'bank_bik', label: 'Банк (БИК)', type: 'text' },
+    { key: 'account_number', label: 'Номер счета', type: 'text' },
+    { key: 'legal_address', label: 'Юридический адрес', type: 'text' },
+    { key: 'actual_address', label: 'Фактический адрес', type: 'text' },
+    { key: 'tax_office', label: 'Налоговая инспекция', type: 'text' },
+    { key: 'okopf', label: 'ОКОПФ', type: 'text' },
+    { key: 'okfs', label: 'ОКФС', type: 'text' },
+    { key: 'okved', label: 'ОКВЭД', type: 'text' },
+    { key: 'edo_astral', label: 'ЭДО Калуга Астрал', type: 'text' },
+    { key: 'edo_sbis', label: 'ЭДО СБИС', type: 'text' },
+    { key: 'salary_day', label: 'Дата зарплаты (число)', type: 'select', options: [5,10,15,20,25,30] },
+    { key: 'advance_day', label: 'Дата аванса (число)', type: 'select', options: [5,10,15,20,25,30] },
+    { key: 'work_start_date', label: 'Дата начала работы с клиникой', type: 'date' }
 ];
 
-function fieldHtml(f){
-  const v = current[f.k] ?? "";
-  if(f.t==="select"){
-    const opts = [`<option value="">—</option>`, ...f.opts.map(o=>`<option value="${o}" ${String(o)===String(v)?"selected":""}>${o}</option>`)];
-    return `<div class="field"><label>${f.l}</label><select class="input" data-k="${f.k}" ${!editing?"disabled":""}>${opts.join("")}</select></div>`;
-  }
-  if(f.t==="date"){
-    return `<div class="field"><label>${f.l}</label><input class="input" type="date" data-k="${f.k}" value="${v||""}" ${!editing?"disabled":""}></div>`;
-  }
-  return `<div class="field"><label>${f.l}</label><input class="input" data-k="${f.k}" value="${escapeHtml(v)}" ${!editing?"disabled":""}></div>`;
+export async function initClient(user) {
+    currentUser = user;
+    const urlParams = new URLSearchParams(window.location.search);
+    clientId = urlParams.get('id');
+    if (!clientId) { window.location.href = 'clients.html'; return; }
+    await loadClient();
+    await loadNotes();
+    setupEvents();
 }
 
-async function render(){
-  const box = document.getElementById("form");
-  box.innerHTML = FIELDS.map(fieldHtml).join("");
-  
-  if(!editing){
-    // Красивый вид в режиме просмотра
-    box.innerHTML = FIELDS.map(f=>{
-      const v = current[f.k];
-      let disp = v ?? "";
-      if(f.t==="date" && v) disp = fmtDate(v);
-      return `<div class="kv" style="grid-column: span 1;"><span class="k">${f.l.replace(" *","")}</span><span class="v">${escapeHtml(String(disp||"—"))} ${v?`<button class="copy" data-copy="${escapeHtml(String(v))}" style="background:none; border:none; cursor:pointer; color:var(--primary); margin-left:6px;">📋</button>`:""}</span></div>`;
-    }).join("");
-    
-    box.innerHTML += `
-      <div class="kv" style="grid-column: span 1;"><span class="k">Реквизиты</span><span class="v">${current.requisites_file_url?`<a href="${current.requisites_file_url}" target="_blank">Открыть</a>`:"—"}</span></div>
-      <div class="kv" style="grid-column: span 1;"><span class="k">Лицензия</span><span class="v">${current.license_file_url?`<a href="${current.license_file_url}" target="_blank">Открыть</a>`:"—"}</span></div>`;
-      
-    box.onclick = e=>{
-      const b = e.target.closest("[data-copy]");
-      if(b) copyText(b.dataset.copy);
-    };
-    renderNotes();
-  } else {
-    box.innerHTML += `
-      <div class="field"><label>Файл реквизитов (PDF)</label><input class="input" type="file" id="reqFile"></div>
-      <div class="field"><label>Файл лицензии (PDF)</label><input class="input" type="file" id="licFile"></div>`;
-  }
-  document.getElementById("title").textContent = id ? (current.short_name || "Клиент") : "Новый клиент";
+async function loadClient() {
+    const { data: client, error } = await supabase.from('clients').select('*').eq('id', clientId).single();
+    if (error || !client) { alert('Клиент не найден'); return; }
+    document.getElementById('clientTitle').textContent = client.short_name;
+    renderFields(client);
 }
 
-async function renderNotes(){
-  if(!id){ document.getElementById("notesBlock").innerHTML=""; return; }
-  const { data: notes } = await supabase.from("client_notes").select("*, profiles(full_name)").eq("client_id", id).order("created_at",{ascending:false});
-  document.getElementById("notesBlock").innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-      <h3>Заметки</h3>
-      <button class="btn small" id="addNote">+ Добавить заметку</button>
-    </div>
-    <div>
-      ${(notes||[]).map(n=>`
-        <div class="card" style="padding:16px; margin-bottom:12px; background:var(--bg); box-shadow:none;">
-          <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-            <span style="font-weight:600; color:var(--primary);">${escapeHtml(n.profiles?.full_name||"")}</span>
-            <span style="color:var(--text-muted); font-size:13px;">${fmtDate(n.created_at?.slice(0,10))} ${n.event_date?` (до ${fmtDate(n.event_date)})`:""}</span>
-          </div>
-          <p>${escapeHtml(n.text)}</p>
-        </div>
-      `).join("") || `<p style="color:var(--text-muted)">Заметок нет</p>`}
-    </div>`;
-  document.getElementById("addNote").onclick = async ()=>{
-    const text = prompt("Текст заметки:"); if(!text) return;
-    const dstr = prompt("Дата события (ДД.ММ.ГГГГ, можно пустым):");
-    let event_date = null;
-    if(dstr){
-      const m = dstr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-      if(m) event_date = `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+function renderFields(client) {
+    const card = document.getElementById('clientCard');
+    let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">';
+
+    fields.forEach(f => {
+        let val = client[f.key] || '';
+        if (f.type === 'date' && val) val = formatDate(val);
+        if (f.type === 'select' && val) val = val + (f.key.includes('day') ? ' число' : '');
+
+        html += `<div>
+            <label>${f.label}</label>
+            <div style="display: flex; gap: 5px; align-items: center;">
+                ${isEditing
+                    ? (f.type === 'select'
+                        ? `<select data-key="${f.key}">${f.options.map(o => `<option value="${o}" ${val.includes(o) ? 'selected' : ''}>${o}${f.key.includes('day')?' число':''}</option>`).join('')}</select>`
+                        : `<input type="${f.type}" data-key="${f.key}" value="${client[f.key] || ''}">`)
+                    : `<span id="val-${f.key}" style="font-weight: 500; word-break: break-all;">${val || '—'}</span>
+                       ${val ? `<button class="copy-btn" data-copy="${val}">Копировать</button>` : ''}`
+                }
+            </div>
+        </div>`;
+    });
+
+    html += `<div><label>Реквизиты</label><div>${client.requisites_file_url ? `<a href="${client.requisites_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
+    html += `<div><label>Лицензия</label><div>${client.license_file_url ? `<a href="${client.license_file_url}" target="_blank">Скачать файл</a>` : '—'}</div></div>`;
+
+    html += '</div>';
+    card.innerHTML = html;
+
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => copyToClipboard(e.target.dataset.copy, e.target));
+    });
+}
+
+function setupEvents() {
+    document.getElementById('editBtn').addEventListener('click', () => {
+        isEditing = true;
+        loadClient();
+        document.getElementById('editBtn').style.display = 'none';
+        document.getElementById('saveBtn').style.display = 'inline-flex';
+    });
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+        const updates = {};
+        document.querySelectorAll('[data-key]').forEach(el => {
+            updates[el.dataset.key] = el.value;
+        });
+        const { error } = await supabase.from('clients').update(updates).eq('id', clientId);
+        if (error) { alert('Ошибка сохранения'); console.error(error); return; }
+        isEditing = false;
+        document.getElementById('editBtn').style.display = 'inline-flex';
+        document.getElementById('saveBtn').style.display = 'none';
+        await loadClient();
+    });
+
+    document.getElementById('addNoteBtn').addEventListener('click', () => {
+        document.getElementById('noteModal').classList.add('active');
+    });
+
+    document.getElementById('saveNoteBtn').addEventListener('click', async () => {
+        const text = document.getElementById('noteText').value;
+        const date = document.getElementById('noteDate').value;
+        if (!text) return alert('Введите текст заметки');
+        await supabase.from('client_notes').insert([{
+            client_id: clientId, text, event_date: date || null, created_by: currentUser.id
+        }]);
+        document.getElementById('noteText').value = '';
+        document.getElementById('noteDate').value = '';
+        document.getElementById('noteModal').classList.remove('active');
+        await loadNotes();
+    });
+}
+
+async function loadNotes() {
+    const { data: notes } = await supabase.from('client_notes')
+        .select('*, profiles(full_name)')
+        .eq('client_id', clientId)
+        .order('created_at', { ascending: false });
+
+    const container = document.getElementById('notesList');
+    if (!notes || notes.length === 0) {
+        container.innerHTML = '<div style="color: var(--text-muted);">Пока нет заметок</div>';
+        return;
     }
-    await supabase.from("client_notes").insert({ client_id: id, text, event_date, created_by: ctx.user.id });
-    toast("Заметка добавлена"); renderNotes();
-  };
+
+    container.innerHTML = notes.map(n => `
+        <div style="padding: 10px 0; border-bottom: 1px solid #eee;">
+            <div style="font-size: 14px;">${n.text}</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 5px;">
+                ${n.event_date ? `Событие: ${formatDate(n.event_date)} | ` : ''}
+                Автор: ${n.profiles?.full_name || 'Неизвестно'} | ${formatDate(n.created_at)}
+            </div>
+        </div>
+    `).join('');
 }
-
-if(id){
-  const { data } = await supabase.from("clients").select("*").eq("id", id).single();
-  current = data || {};
-}
-await render();
-
-document.getElementById("editBtn").onclick = ()=>{
-  editing = true; document.getElementById("editBtn").classList.add("hidden");
-  document.getElementById("saveBtn").classList.remove("hidden");
-  document.getElementById("cancelBtn").classList.remove("hidden");
-  render();
-};
-document.getElementById("cancelBtn").onclick = ()=>location.reload();
-document.getElementById("saveBtn").onclick = async ()=>{
-  const patch = {};
-  document.querySelectorAll("[data-k]").forEach(el=>{
-    const k = el.dataset.k;
-    let v = el.value;
-    if(["salary_day","advance_day"].includes(k)) v = v ? Number(v) : null;
-    patch[k] = v || null;
-  });
-  if(!patch.short_name){ toast("Заполните наименование"); return; }
-
-  const upFile = async (inputId, column) => {
-    const f = document.getElementById(inputId)?.files?.[0];
-    if(!f) return;
-    const path = `clients/${Date.now()}_${f.name}`;
-    const { error } = await supabase.storage.from("files").upload(path, f);
-    if(error){ toast("Ошибка файла"); return; }
-    const { data:{ publicUrl } } = supabase.storage.from("files").getPublicUrl(path);
-    patch[column] = publicUrl;
-  };
-  await upFile("reqFile","requisites_file_url");
-  await upFile("licFile","license_file_url");
-
-  if(id){
-    await supabase.from("clients").update(patch).eq("id", id);
-    toast("Сохранено"); setTimeout(()=>location.reload(), 400);
-  } else {
-    patch.created_by = ctx.user.id;
-    const { data, error } = await supabase.from("clients").insert(patch).select().single();
-    if(error){ toast(error.message); return; }
-    location.href = `client.html?id=${data.id}`;
-  }
-};
