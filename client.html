@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Карточка клиента | МЕДФИНАНС ГРУПП</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- САЙДБАР (копируется на все страницы) -->
+    <aside class="sidebar" id="sidebar">
+      <a href="app.html" class="sidebar-logo"><img src="assets/logo.png" alt="M" style="width: 40px; border-radius: 8px;" onerror="this.outerHTML='<i class=\'fa-solid fa-chart-pie\'></i>'"></a>
+      <nav class="nav-menu">
+        <a href="app.html" class="nav-item" title="Главная"><i class="fa-solid fa-house"></i></a>
+        <a href="clients.html" class="nav-item active" title="Клиенты"><i class="fa-solid fa-users"></i></a>
+        <a href="tasks.html" class="nav-item" title="Задачи"><i class="fa-solid fa-list-check"></i></a>
+        <a href="passwords.html" class="nav-item" title="Пароли"><i class="fa-solid fa-key"></i></a>
+        <a href="salary.html" class="nav-item" title="Зарплаты"><i class="fa-solid fa-money-bill-wave"></i></a>
+        <a href="reports.html" class="nav-item" title="Отчетность"><i class="fa-solid fa-file-invoice"></i></a>
+        <a href="payments.html" class="nav-item" title="Платежи"><i class="fa-solid fa-credit-card"></i></a>
+        <a href="custom.html" class="nav-item" title="Произвольные"><i class="fa-solid fa-layer-group"></i></a>
+        <a href="calendar.html" class="nav-item" title="Календарь"><i class="fa-solid fa-calendar-days"></i></a>
+      </nav>
+      <button id="logout-btn" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button class="mobile-menu-btn" id="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+          <h1 id="client-title-header">Карточка клиента</h1>
+        </div>
+        <div class="user-info"><div class="avatar" id="user-avatar">M</div></div>
+      </header>
+
+      <div class="page-container">
+        <div class="client-header-actions">
+          <a href="clients.html" class="btn btn-outline"><i class="fa-solid fa-arrow-left"></i> Назад</a>
+          <div id="action-buttons">
+            <button id="btn-edit" class="btn btn-primary"><i class="fa-solid fa-pen"></i> Редактировать</button>
+            <button id="btn-save" class="btn btn-success" style="display: none;"><i class="fa-solid fa-floppy-disk"></i> Сохранить</button>
+            <button id="btn-cancel" class="btn btn-outline" style="display: none;">Отмена</button>
+          </div>
+        </div>
+
+        <div class="client-layout" id="client-data-container">
+            <!-- Сюда рендерятся блоки -->
+            <p class="text-muted">Загрузка данных...</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Модальное окно для заметок -->
+  <div class="modal-overlay" id="note-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title">Добавить заметку</h2>
+        <button class="modal-close" onclick="document.getElementById('note-modal').classList.remove('active')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Текст заметки *</label>
+          <textarea id="note-text" class="form-control" rows="4" placeholder="Введите текст..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Дата события (необязательно)</label>
+          <input type="date" id="note-date" class="form-control">
+          <small class="text-muted mt-1" style="display:block;">Заметка появится на главной за 7 дней до этой даты.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="document.getElementById('note-modal').classList.remove('active')">Отмена</button>
+        <button class="btn btn-primary" id="btn-save-note">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/auth.js"></script>
+  <script type="module" src="assets/js/client.js"></script>
+</body>
+</html>

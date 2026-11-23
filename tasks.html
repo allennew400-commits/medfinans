@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Задачи | МЕДФИНАНС ГРУПП</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <a href="app.html" class="sidebar-logo"><img src="assets/logo.png" alt="M" style="width: 40px; border-radius: 8px;" onerror="this.outerHTML='<i class=\'fa-solid fa-chart-pie\'></i>'"></a>
+      <nav class="nav-menu">
+        <a href="app.html" class="nav-item" title="Главная"><i class="fa-solid fa-house"></i></a>
+        <a href="clients.html" class="nav-item" title="Клиенты"><i class="fa-solid fa-users"></i></a>
+        <a href="tasks.html" class="nav-item active" title="Задачи"><i class="fa-solid fa-list-check"></i></a>
+        <a href="passwords.html" class="nav-item" title="Пароли"><i class="fa-solid fa-key"></i></a>
+        <a href="salary.html" class="nav-item" title="Зарплаты"><i class="fa-solid fa-money-bill-wave"></i></a>
+        <a href="reports.html" class="nav-item" title="Отчетность"><i class="fa-solid fa-file-invoice"></i></a>
+        <a href="payments.html" class="nav-item" title="Платежи"><i class="fa-solid fa-credit-card"></i></a>
+        <a href="custom.html" class="nav-item" title="Произвольные"><i class="fa-solid fa-layer-group"></i></a>
+        <a href="calendar.html" class="nav-item" title="Календарь"><i class="fa-solid fa-calendar-days"></i></a>
+      </nav>
+      <button id="logout-btn" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button class="mobile-menu-btn" id="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+          <h1>Задачи</h1>
+        </div>
+        <div class="user-info"><div class="avatar" id="user-avatar">M</div></div>
+      </header>
+
+      <div class="page-container">
+        <div class="d-flex justify-between align-center flex-wrap gap-4 mb-4">
+          <div class="tabs-container" style="margin: 0;">
+            <button class="tab-btn active" data-tab="common">Общие задачи</button>
+            <button class="tab-btn" data-tab="personal">Мои задачи</button>
+          </div>
+          <button class="btn btn-primary" id="btn-add-task"><i class="fa-solid fa-plus"></i> Добавить задачу</button>
+        </div>
+
+        <div id="tasks-container">
+          <!-- Сюда рендерятся задачи -->
+        </div>
+        
+        <!-- Архив -->
+        <div class="mt-6">
+            <h3 class="text-muted mb-2"><i class="fa-solid fa-box-archive"></i> Архив выполненных</h3>
+            <div id="archive-container"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Модальное окно добавления задачи -->
+  <div class="modal-overlay" id="task-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title">Новая задача</h2>
+        <button class="modal-close" onclick="document.getElementById('task-modal').classList.remove('active')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Текст задачи *</label>
+          <textarea id="task-text" class="form-control" rows="3" placeholder="Что нужно сделать?"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Дата выполнения</label>
+          <input type="date" id="task-date" class="form-control">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Повторение</label>
+          <select id="task-recurrence" class="form-control">
+            <option value="none">Однократно</option>
+            <option value="daily">Ежедневно</option>
+            <option value="weekly">Еженедельно</option>
+            <option value="monthly">Ежемесячно</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Для кого</label>
+          <select id="task-assignee" class="form-control">
+            <option value="all">Для всех (Общая)</option>
+            <!-- Опции сотрудников подтянутся из JS -->
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="document.getElementById('task-modal').classList.remove('active')">Отмена</button>
+        <button class="btn btn-primary" id="btn-save-task">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/auth.js"></script>
+  <script type="module" src="assets/js/tasks.js"></script>
+</body>
+</html>

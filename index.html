@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход | МЕДФИНАНС ГРУПП</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="manifest" href="assets/manifest.json">
+</head>
+<body class="login-body">
+  <div class="login-container">
+    <img src="assets/logo.png" alt="Логотип" class="login-logo" onerror="this.style.display='none'">
+    <h1>МЕДФИНАНС ГРУПП</h1>
+    <p>Введите данные для доступа к базе</p>
+
+    <form id="login-form">
+      <div class="form-group">
+        <label for="email" class="form-label">Логин (Имя)</label>
+        <!-- name="username" и autocomplete помогают браузеру сохранять пароли -->
+        <input type="text" id="email" name="username" class="form-control" placeholder="Татьяна, Лена, Даша, Вероника" required autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password" class="form-label">Пароль</label>
+        <input type="password" id="password" name="password" class="form-control" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block btn-lg" id="login-btn">Войти</button>
+    </form>
+  </div>
+
+  <script type="module" src="assets/js/auth.js"></script>
+</body>
+</html>

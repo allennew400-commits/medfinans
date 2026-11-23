@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Зарплаты | МЕДФИНАНС ГРУПП</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <a href="app.html" class="sidebar-logo"><img src="assets/logo.png" alt="M" style="width: 40px; border-radius: 8px;" onerror="this.outerHTML='<i class=\'fa-solid fa-chart-pie\'></i>'"></a>
+      <nav class="nav-menu">
+        <a href="app.html" class="nav-item" title="Главная"><i class="fa-solid fa-house"></i></a>
+        <a href="clients.html" class="nav-item" title="Клиенты"><i class="fa-solid fa-users"></i></a>
+        <a href="tasks.html" class="nav-item" title="Задачи"><i class="fa-solid fa-list-check"></i></a>
+        <a href="passwords.html" class="nav-item" title="Пароли"><i class="fa-solid fa-key"></i></a>
+        <a href="salary.html" class="nav-item active" title="Зарплаты"><i class="fa-solid fa-money-bill-wave"></i></a>
+        <a href="reports.html" class="nav-item" title="Отчетность"><i class="fa-solid fa-file-invoice"></i></a>
+        <a href="payments.html" class="nav-item" title="Платежи"><i class="fa-solid fa-credit-card"></i></a>
+        <a href="custom.html" class="nav-item" title="Произвольные"><i class="fa-solid fa-layer-group"></i></a>
+        <a href="calendar.html" class="nav-item" title="Календарь"><i class="fa-solid fa-calendar-days"></i></a>
+      </nav>
+      <button id="logout-btn" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button class="mobile-menu-btn" id="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+          <h1>Зарплаты и выплаты</h1>
+        </div>
+        <div class="user-info"><div class="avatar" id="user-avatar">M</div></div>
+      </header>
+
+      <div class="page-container">
+        <div class="d-flex justify-between align-center mb-4">
+            <p class="text-muted">Здесь создаются ведомости на выплату</p>
+            <button class="btn btn-primary" id="btn-add-run"><i class="fa-solid fa-plus"></i> Создать ведомость</button>
+        </div>
+
+        <div id="runs-container">
+          <!-- Сюда рендерятся ведомости -->
+          <div class="text-center text-muted" style="padding: 40px;">
+            <i class="fa-solid fa-folder-open" style="font-size: 40px; opacity: 0.5; margin-bottom: 12px;"></i>
+            <p>Ведомостей пока нет</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Модалка создания -->
+  <div class="modal-overlay" id="run-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title">Создать ведомость</h2>
+        <button class="modal-close" onclick="document.getElementById('run-modal').classList.remove('active')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Тип выплаты</label>
+          <select id="run-kind" class="form-control">
+            <option value="salary">Зарплата</option>
+            <option value="advance">Аванс</option>
+            <option value="vacation">Отпуск</option>
+            <option value="sick">Больничный</option>
+            <option value="dismissal">Увольнение</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Планируемая дата выплаты</label>
+          <input type="date" id="run-date" class="form-control" required>
+          <small class="text-muted mt-1" style="display:block;">Система автоматически перенесет выплату на пятницу, если дата выпадает на выходной.</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="document.getElementById('run-modal').classList.remove('active')">Отмена</button>
+        <button class="btn btn-primary" id="btn-create-run">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/auth.js"></script>
+  <script type="module" src="assets/js/salary.js"></script>
+</body>
+</html>

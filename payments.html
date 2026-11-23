@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Обязательные платежи | МЕДФИНАНС ГРУПП</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar" id="sidebar">
+      <a href="app.html" class="sidebar-logo"><img src="assets/logo.png" alt="M" style="width: 40px; border-radius: 8px;" onerror="this.outerHTML='<i class=\'fa-solid fa-chart-pie\'></i>'"></a>
+      <nav class="nav-menu">
+        <a href="app.html" class="nav-item" title="Главная"><i class="fa-solid fa-house"></i></a>
+        <a href="clients.html" class="nav-item" title="Клиенты"><i class="fa-solid fa-users"></i></a>
+        <a href="tasks.html" class="nav-item" title="Задачи"><i class="fa-solid fa-list-check"></i></a>
+        <a href="passwords.html" class="nav-item" title="Пароли"><i class="fa-solid fa-key"></i></a>
+        <a href="salary.html" class="nav-item" title="Зарплаты"><i class="fa-solid fa-money-bill-wave"></i></a>
+        <a href="reports.html" class="nav-item" title="Отчетность"><i class="fa-solid fa-file-invoice"></i></a>
+        <a href="payments.html" class="nav-item active" title="Платежи"><i class="fa-solid fa-credit-card"></i></a>
+        <a href="custom.html" class="nav-item" title="Произвольные"><i class="fa-solid fa-layer-group"></i></a>
+        <a href="calendar.html" class="nav-item" title="Календарь"><i class="fa-solid fa-calendar-days"></i></a>
+      </nav>
+      <button id="logout-btn" class="logout-btn"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button class="mobile-menu-btn" id="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+          <h1>Обязательные платежи</h1>
+        </div>
+        <div class="user-info"><div class="avatar" id="user-avatar">M</div></div>
+      </header>
+
+      <div class="page-container">
+        <div class="form-group mb-4" style="max-width: 400px;">
+            <input type="text" id="search-payment" class="form-control" placeholder="Поиск организации...">
+        </div>
+
+        <div class="client-list" id="payments-container">
+          <!-- Карточки клиентов рендерятся JS -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Модалка платежей конкретного клиента -->
+  <div class="modal-overlay" id="client-payments-modal">
+    <div class="modal-container" style="max-width: 700px;">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-client-name">Платежи</h2>
+        <button class="modal-close" onclick="document.getElementById('client-payments-modal').classList.remove('active')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-between align-center mb-4">
+            <button class="btn btn-primary" id="btn-add-payment"><i class="fa-solid fa-plus"></i> Добавить платеж</button>
+        </div>
+
+        <!-- Форма добавления (скрыта по умолчанию) -->
+        <div id="add-payment-form" class="card mb-4" style="display: none; background: var(--bg-surface-hover);">
+            <div class="form-group">
+                <label class="form-label">Название платежа</label>
+                <input type="text" id="new-payment-title" class="form-control" placeholder="Например: Аренда офиса">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Дата платежа (ежемесячно)</label>
+                <input type="date" id="new-payment-date" class="form-control">
+            </div>
+            <button class="btn btn-success" id="btn-save-payment">Сохранить</button>
+            <button class="btn btn-outline" id="btn-cancel-payment">Отмена</button>
+        </div>
+
+        <div id="payments-list">
+            <!-- Список платежей -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/auth.js"></script>
+  <script type="module" src="assets/js/payments.js"></script>
+</body>
+</html>
