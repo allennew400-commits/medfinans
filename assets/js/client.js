@@ -10,28 +10,38 @@ let notesData = [];
 
 const container = document.getElementById('client-data-container');
 
+// Безопасное экранирование кавычек для передачи в onclick
+function escapeQuotes(str) {
+  return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
 // --- РЕНДЕР КАРТОЧКИ ---
 function renderClient() {
   const field = (key, isDate = false, isPhone = false, isSelect = false, options = [], isTextarea = false) => {
-    let value = clientData[key] || '';
+    let value = clientData[key] ?? '';
     if (isDate && value) value = formatDate(value);
     
     if (isEditMode) {
       if (isSelect) {
         return `<select class="form-control" id="edit-${key}">
-          ${options.map(opt => `<option value="${opt}" ${value == opt ? 'selected' : ''}>${opt}</option>`).join('')}
+          ${options.map(opt => `<option value="${opt}" ${String(value) === String(opt) ? 'selected' : ''}>${opt}</option>`).join('')}
         </select>`;
       }
       if (isTextarea) {
         return `<textarea class="form-control" id="edit-${key}" rows="2">${value}</textarea>`;
       }
-      return `<input type="${isDate ? 'date' : 'text'}" class="form-control ${isPhone ? 'phone-input' : ''}" id="edit-${key}" value="${isDate && value ? value.split('.').reverse().join('-') : value}">`;
+      // Для дат в режиме редактирования возвращаем формат YYYY-MM-DD
+      let inputValue = value;
+      if (isDate && value && typeof value === 'string' && value.includes('.')) {
+        inputValue = value.split('.').reverse().join('-');
+      }
+      return `<input type="${isDate ? 'date' : 'text'}" class="form-control ${isPhone ? 'phone-input' : ''}" id="edit-${key}" value="${inputValue}">`;
     }
     
-    if (!value) return '<span class="text-muted">—</span>';
+    if (!value && value !== 0) return '<span class="text-muted">—</span>';
     return `
       <span>${value}</span>
-      <button class="copy-btn" onclick="window.copyText('${String(value).replace(/'/g, "\\'")}', this)"><i class="fa-regular fa-copy"></i></button>
+      <button class="copy-btn" onclick="window.copyText('${escapeQuotes(value)}', this)"><i class="fa-regular fa-copy"></i></button>
     `;
   };
 
@@ -120,7 +130,7 @@ function renderNotes() {
   `).join('');
 }
 
-// --- ЗАГРУЗКА ДАННЫХ (С ЗАЩИТОЙ ОТ ОШИБОК) ---
+// --- ЗАГРУЗКА ДАННЫХ ---
 async function loadData() {
   console.log("Запуск загрузки карточки. ID из URL:", clientId);
 
@@ -130,7 +140,6 @@ async function loadData() {
   }
 
   try {
-    // 1. Загружаем клиента
     const { data: cData, error: cError } = await supabase.from('clients').select('*').eq('id', clientId).single();
     
     if (cError) {
@@ -140,17 +149,15 @@ async function loadData() {
     clientData = cData;
     console.log("Данные клиента успешно загружены:", clientData);
 
-    // 2. Загружаем заметки
     const { data: nData, error: nError } = await supabase.from('client_notes').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
     
     if (nError) {
       console.warn("Не удалось загрузить заметки:", nError.message);
-      notesData = []; // Если заметки не загрузились, просто пустой список, карточка не падает
+      notesData = [];
     } else {
       notesData = nData || [];
     }
 
-    // 3. Отрисовываем
     renderClient();
 
   } catch (error) {
@@ -159,7 +166,6 @@ async function loadData() {
       <div class="card col-12" style="border-left: 4px solid var(--danger);">
         <h3 class="text-danger mb-2"><i class="fa-solid fa-triangle-exclamation"></i> Не удалось загрузить карточку</h3>
         <p class="text-main">${error.message}</p>
-        <p class="text-muted text-sm mt-2">Проверьте консоль браузера (F12) для подробностей.</p>
         <a href="clients.html" class="btn btn-outline mt-4">Вернуться к списку</a>
       </div>
     `;
