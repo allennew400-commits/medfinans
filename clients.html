@@ -1,74 +1,224 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Клиенты - МЕДФИНАНС ГРУПП</title>
-    <link rel="stylesheet" href="assets/css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Клиенты | МЕДФИНАНС ГРУПП</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="mobile-header">
-        <button class="burger-menu" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
-        <div class="logo-container"><img src="assets/logo.png" alt=""> МедФинанс</div>
-    </div>
-    <aside class="sidebar">
-        <div class="logo-container"><img src="assets/logo.png" alt="Логотип"><span>МЕДФИНАНС</span></div>
-        <ul class="nav-links">
-            <li><a href="app.html">Главная</a></li>
-            <li><a href="clients.html" class="active">Клиенты</a></li>
-            <li><a href="tasks.html">Задачи</a></li>
-            <li><a href="passwords.html">Пароли</a></li>
-            <li><a href="salary.html">Зарплаты</a></li>
-            <li><a href="reports.html">Отчетность</a></li>
-            <li><a href="payments.html">Платежи</a></li>
-            <li><a href="custom.html">Произвольное</a></li>
-            <li><a href="calendar.html">Календарь</a></li>
-        </ul>
+  <div class="app-layout">
+    <!-- САЙДБАР -->
+    <aside class="sidebar" id="sidebar">
+      <a href="app.html" class="sidebar-logo"><img src="assets/logo.png" alt="M" style="width: 40px; border-radius: 8px;" onerror="this.outerHTML='<i class=\'fa-solid fa-chart-pie\'></i>'"></a>
+      <nav class="nav-menu">
+        <a href="app.html" class="nav-item" title="Главная"><i class="fa-solid fa-house"></i></a>
+        <a href="clients.html" class="nav-item active" title="Клиенты"><i class="fa-solid fa-users"></i></a>
+        <a href="tasks.html" class="nav-item" title="Задачи"><i class="fa-solid fa-list-check"></i></a>
+        <a href="passwords.html" class="nav-item" title="Пароли"><i class="fa-solid fa-key"></i></a>
+        <a href="salary.html" class="nav-item" title="Зарплаты"><i class="fa-solid fa-money-bill-wave"></i></a>
+        <a href="reports.html" class="nav-item" title="Отчетность"><i class="fa-solid fa-file-invoice"></i></a>
+        <a href="payments.html" class="nav-item" title="Платежи"><i class="fa-solid fa-credit-card"></i></a>
+        <a href="custom.html" class="nav-item" title="Произвольные"><i class="fa-solid fa-layer-group"></i></a>
+        <a href="calendar.html" class="nav-item" title="Календарь"><i class="fa-solid fa-calendar-days"></i></a>
+      </nav>
+      <button id="logout-btn" class="logout-btn" title="Выйти"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
     </aside>
 
+    <!-- ОСНОВНОЙ КОНТЕНТ -->
     <main class="main-content">
-        <header class="top-header">
-            <h1>Клиенты</h1>
-            <div class="user-info" id="user-header"></div>
-        </header>
+      <header class="top-header">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button class="mobile-menu-btn" id="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+          <h1>База клиентов</h1>
+        </div>
+        <div class="user-info"><div class="avatar" id="user-avatar">M</div></div>
+      </header>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
-            <div class="tabs" style="margin: 0; border: none;">
-                <button class="tab active" data-kind="all">Все</button>
-                <button class="tab" data-kind="ООО">ООО</button>
-                <button class="tab" data-kind="ИП">ИП</button>
-            </div>
-            <div style="display: flex; gap: 10px; width: 100%; max-width: 400px;">
-                <input type="text" id="searchInput" placeholder="Поиск по названию, ИНН, адресу..." style="width: 100%;">
-                <button class="btn btn-primary" onclick="window.location.href='client.html'">+ Добавить</button>
-            </div>
+      <div class="page-container">
+        <!-- Верхняя панель управления -->
+        <div class="d-flex justify-between align-center flex-wrap gap-4 mb-4">
+          <!-- Поиск -->
+          <div class="form-group" style="margin: 0; flex: 1; min-width: 250px; max-width: 400px;">
+            <input type="text" id="search-input" class="form-control" placeholder="Поиск по названию, ИНН или адресу...">
+          </div>
+          <!-- Кнопка добавить -->
+          <button class="btn btn-primary" id="btn-open-add-modal">
+            <i class="fa-solid fa-plus"></i> Добавить клиента
+          </button>
         </div>
 
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>№</th>
-                        <th>Название</th>
-                        <th>Тип</th>
-                        <th>ИНН</th>
-                        <th>Директор</th>
-                        <th>Действия</th>
-                    </tr>
-                </thead>
-                <tbody id="clientsTableBody">
-                    <tr><td colspan="6" style="text-align: center;">Загрузка...</td></tr>
-                </tbody>
-            </table>
+        <!-- Вкладки -->
+        <div class="tabs-container" id="client-tabs">
+          <button class="tab-btn active" data-filter="all">Все клиенты</button>
+          <button class="tab-btn" data-filter="ООО">ООО</button>
+          <button class="tab-btn" data-filter="ИП">ИП</button>
         </div>
+
+        <!-- Контейнер для карточек -->
+        <div class="client-list" id="clients-container">
+          <!-- Скелетоны загрузки -->
+          <div class="client-card skeleton" style="height: 150px;"></div>
+          <div class="client-card skeleton" style="height: 150px;"></div>
+          <div class="client-card skeleton" style="height: 150px;"></div>
+        </div>
+      </div>
     </main>
+  </div>
 
-    <script type="module">
-        import { checkAuth } from './assets/js/auth.js';
-        import { initClients } from './assets/js/clients.js';
-    
-        const user = await checkAuth();
-        if (user) initClients();
-    </script>
+  <!-- МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ КЛИЕНТА -->
+  <div class="modal-overlay" id="add-client-modal">
+    <div class="modal-container" style="max-width: 800px;">
+      <div class="modal-header">
+        <h2 class="modal-title">Добавить нового клиента</h2>
+        <button class="modal-close" onclick="document.getElementById('add-client-modal').classList.remove('active')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="add-client-form">
+          <!-- Блок 1: Общая информация -->
+          <h4 class="mb-3 text-primary"><i class="fa-solid fa-building"></i> Общая информация</h4>
+          <div class="dashboard-grid" style="gap: 16px; margin-bottom: 24px;">
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Тип *</label>
+              <select id="add-kind" class="form-control" required>
+                <option value="ООО">ООО</option>
+                <option value="ИП">ИП</option>
+              </select>
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Краткое наименование *</label>
+              <input type="text" id="add-short-name" class="form-control" required placeholder="ООО 'Ромашка'">
+            </div>
+            <div class="form-group col-12" style="margin: 0;">
+              <label class="form-label">Полное наименование</label>
+              <input type="text" id="add-full-name" class="form-control" placeholder="Общество с ограниченной ответственностью...">
+            </div>
+            <div class="form-group col-4" style="margin: 0;">
+              <label class="form-label">ИНН</label>
+              <input type="text" id="add-inn" class="form-control">
+            </div>
+            <div class="form-group col-4" style="margin: 0;">
+              <label class="form-label">КПП</label>
+              <input type="text" id="add-kpp" class="form-control">
+            </div>
+            <div class="form-group col-4" style="margin: 0;">
+              <label class="form-label">ОГРН</label>
+              <input type="text" id="add-ogrn" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Дата регистрации</label>
+              <input type="date" id="add-reg-date" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Налогообложение</label>
+              <input type="text" id="add-tax-type" class="form-control" placeholder="УСН, ОСНО...">
+            </div>
+          </div>
+
+          <!-- Блок 2: Руководитель -->
+          <h4 class="mb-3 text-primary"><i class="fa-solid fa-user-tie"></i> Руководитель</h4>
+          <div class="dashboard-grid" style="gap: 16px; margin-bottom: 24px;">
+            <div class="form-group col-4" style="margin: 0;">
+              <label class="form-label">Роль</label>
+              <select id="add-director-role" class="form-control">
+                <option value="Директор">Директор</option>
+                <option value="Генеральный директор">Генеральный директор</option>
+              </select>
+            </div>
+            <div class="form-group col-4" style="margin: 0;">
+              <label class="form-label">ФИО</label>
+              <input type="text" id="add-director-name" class="form-control">
+            </div>
+            <div class="form-group col-4" style="margin: 0;">
+              <label class="form-label">Дата рождения</label>
+              <input type="date" id="add-director-bday" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Телефон</label>
+              <input type="text" id="add-director-phone" class="form-control phone-input" placeholder="+7 (___) ___-__-__">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Рабочая почта</label>
+              <input type="email" id="add-email-work" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Почта 1С</label>
+              <input type="email" id="add-email-1c" class="form-control">
+            </div>
+          </div>
+
+          <!-- Блок 3: Банк и адреса -->
+          <h4 class="mb-3 text-primary"><i class="fa-solid fa-building-columns"></i> Банк и адреса</h4>
+          <div class="dashboard-grid" style="gap: 16px; margin-bottom: 24px;">
+            <div class="form-group col-4" style="margin: 0;">
+              <label class="form-label">БИК</label>
+              <input type="text" id="add-bank-bik" class="form-control">
+            </div>
+            <div class="form-group col-8" style="margin: 0;">
+              <label class="form-label">Расчетный счет</label>
+              <input type="text" id="add-account-number" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Юр. адрес</label>
+              <input type="text" id="add-legal-address" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Факт. адрес</label>
+              <input type="text" id="add-actual-address" class="form-control">
+            </div>
+          </div>
+
+          <!-- Блок 4: ЭДО и ЗП -->
+          <h4 class="mb-3 text-primary"><i class="fa-solid fa-file-shield"></i> ЭДО и Зарплата</h4>
+          <div class="dashboard-grid" style="gap: 16px; margin-bottom: 24px;">
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Калуга Астрал</label>
+              <input type="text" id="add-edo-astral" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">СБИС</label>
+              <input type="text" id="add-edo-sbis" class="form-control">
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Дата зарплаты</label>
+              <select id="add-salary-day" class="form-control">
+                <option value="">Не указано</option>
+                <option value="5">5 число</option>
+                <option value="10">10 число</option>
+                <option value="15">15 число</option>
+                <option value="20">20 число</option>
+                <option value="25">25 число</option>
+                <option value="30">30 число</option>
+              </select>
+            </div>
+            <div class="form-group col-6" style="margin: 0;">
+              <label class="form-label">Дата аванса</label>
+              <select id="add-advance-day" class="form-control">
+                <option value="">Не указано</option>
+                <option value="5">5 число</option>
+                <option value="10">10 число</option>
+                <option value="15">15 число</option>
+                <option value="20">20 число</option>
+                <option value="25">25 число</option>
+                <option value="30">30 число</option>
+              </select>
+            </div>
+            <div class="form-group col-12" style="margin: 0;">
+              <label class="form-label">Дата начала работы с бухгалтерией</label>
+              <input type="date" id="add-work-start-date" class="form-control">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="document.getElementById('add-client-modal').classList.remove('active')">Отмена</button>
+        <button class="btn btn-primary" id="btn-save-client"><i class="fa-solid fa-floppy-disk"></i> Сохранить клиента</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="assets/js/auth.js"></script>
+  <script type="module" src="assets/js/clients.js"></script>
 </body>
 </html>
