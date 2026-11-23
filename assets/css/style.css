@@ -1100,3 +1100,72 @@ td .form-control { padding: 8px 12px; font-size: 0.9rem; }
 .client-card-inn { font-size: 0.8rem; color: var(--text-muted); background: var(--bg-body); padding: 4px 8px; border-radius: 4px; }
 .client-card-info { font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 8px; }
 .client-card-info i { color: var(--text-muted); width: 16px; text-align: center; }
+/* =========================================
+   ОБНОВЛЕННАЯ КАРТОЧКА КЛИЕНТА (СПИСКОМ)
+   ========================================= */
+
+/* Меняем сетку на одну колонку */
+.client-layout {
+  display: grid;
+  grid-template-columns: 1fr !important; /* Строго в один столбец */
+  gap: 24px;
+}
+
+/* Делаем блоки на всю ширину */
+.info-block {
+  width: 100%;
+}
+
+/* Новый стиль для полей (строк) */
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px; /* Увеличили размер полей */
+  background-color: rgba(99, 102, 241, 0.03); /* Легкий фиолетовый фон */
+  border: 1px solid rgba(99, 102, 241, 0.15); /* Полупрозрачная цветная обводка */
+  border-radius: var(--border-radius-md);
+  margin-bottom: 10px;
+  transition: var(--transition);
+}
+
+/* Убираем старую нижнюю границу у последнего элемента */
+.info-row:last-child {
+  margin-bottom: 0;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.15); 
+}
+
+/* Эффект при наведении на поле */
+.info-row:hover {
+  background-color: rgba(99, 102, 241, 0.07);
+  border-color: rgba(99, 102, 241, 0.35);
+}
+
+/* Шрифт для подписей (слева) */
+.info-label {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  flex: 0 0 45%;
+  padding-right: 16px;
+}
+
+/* Шрифт для значений (справа) */
+.info-value {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--text-main);
+  flex: 1;
+  text-align: right;
+  word-break: break-word;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Чуть подправим блок заметок, чтобы он тоже был на всю ширину */
+.notes-section {
+  grid-column: span 1 !important;
+  margin-top: 0;
+}
