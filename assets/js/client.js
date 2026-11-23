@@ -3,6 +3,7 @@ import { formatDate, copyToClipboard, maskPhone } from './utils.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const clientId = urlParams.get('id');
+
 let clientData = {};
 let isEditMode = false;
 let notesData = [];
@@ -11,7 +12,6 @@ const container = document.getElementById('client-data-container');
 
 // --- РЕНДЕР КАРТОЧКИ ---
 function renderClient() {
-  // Универсальная функция для поля
   const field = (key, isDate = false, isPhone = false, isSelect = false, options = [], isTextarea = false) => {
     let value = clientData[key] || '';
     if (isDate && value) value = formatDate(value);
@@ -19,19 +19,19 @@ function renderClient() {
     if (isEditMode) {
       if (isSelect) {
         return `<select class="form-control" id="edit-${key}">
-          ${options.map(opt => `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+          ${options.map(opt => `<option value="${opt}" ${value == opt ? 'selected' : ''}>${opt}</option>`).join('')}
         </select>`;
       }
       if (isTextarea) {
         return `<textarea class="form-control" id="edit-${key}" rows="2">${value}</textarea>`;
       }
-      return `<input type="${isDate ? 'date' : 'text'}" class="form-control ${isPhone ? 'phone-input' : ''}" id="edit-${key}" value="${isDate ? value.split('.').reverse().join('-') : value}">`;
+      return `<input type="${isDate ? 'date' : 'text'}" class="form-control ${isPhone ? 'phone-input' : ''}" id="edit-${key}" value="${isDate && value ? value.split('.').reverse().join('-') : value}">`;
     }
     
     if (!value) return '<span class="text-muted">—</span>';
     return `
       <span>${value}</span>
-      <button class="copy-btn" onclick="window.copyText('${value.replace(/'/g, "\\'")}', this)"><i class="fa-regular fa-copy"></i></button>
+      <button class="copy-btn" onclick="window.copyText('${String(value).replace(/'/g, "\\'")}', this)"><i class="fa-regular fa-copy"></i></button>
     `;
   };
 
@@ -80,7 +80,6 @@ function renderClient() {
       <div class="info-row"><span class="info-label">Дата аванса</span><span class="info-value">${field('advance_day', false, false, true, ['5','10','15','20','25','30'])}</span></div>
     </div>
 
-    <!-- Блок файлов и заметок -->
     <div class="info-block" style="grid-column: span 2;">
       <div class="info-block-title"><i class="fa-solid fa-paperclip"></i> Файлы и Заметки</div>
       <div class="d-flex gap-4 mb-4 flex-wrap">
@@ -88,16 +87,13 @@ function renderClient() {
         <a href="${clientData.license_file_url || '#'}" target="_blank" class="btn btn-outline ${!clientData.license_file_url ? 'disabled' : ''}"><i class="fa-solid fa-file-contract"></i> Лицензия</a>
         <button class="btn btn-primary" onclick="document.getElementById('note-modal').classList.add('active')"><i class="fa-solid fa-plus"></i> Добавить заметку</button>
       </div>
-      
-      <div class="notes-list" id="notes-list">
-        <!-- Заметки рендерятся ниже -->
-      </div>
+      <div class="notes-list" id="notes-list"></div>
     </div>
   `;
 
   if (isEditMode) {
     document.querySelectorAll('.phone-input').forEach(input => maskPhone(input));
-    document.getElementById('client-title-header').innerHTML = `Редактирование: ${clientData.short_name}`;
+    document.getElementById('client-title-header').innerHTML = `Редактирование: ${clientData.short_name || ''}`;
   } else {
     document.getElementById('client-title-header').innerHTML = `${clientData.short_name || 'Карточка клиента'}`;
   }
@@ -108,6 +104,8 @@ function renderClient() {
 // --- РЕНДЕР ЗАМЕТОК ---
 function renderNotes() {
   const notesList = document.getElementById('notes-list');
+  if (!notesList) return;
+  
   if (!notesData || notesData.length === 0) {
     notesList.innerHTML = '<p class="text-muted">Заметок пока нет.</p>';
     return;
@@ -116,97 +114,138 @@ function renderNotes() {
   notesList.innerHTML = notesData.map(n => `
     <div class="note-card">
       ${n.event_date ? `<div class="note-date"><i class="fa-regular fa-calendar"></i> Событие: ${formatDate(n.event_date)}</div>` : ''}
-      <div class="note-text">${n.text}</div>
+      <div class="note-text">${n.text || ''}</div>
       <div class="note-author">Добавлено: ${n.created_at ? formatDate(n.created_at) : ''}</div>
     </div>
   `).join('');
 }
 
-// --- ЗАГРУЗКА ДАННЫХ ---
+// --- ЗАГРУЗКА ДАННЫХ (С ЗАЩИТОЙ ОТ ОШИБОК) ---
 async function loadData() {
-  if (!clientId) return;
-  
-  // Клиент
-  const { data: cData, error: cError } = await supabase.from('clients').select('*').eq('id', clientId).single();
-  if (cError) { alert('Ошибка загрузки клиента'); return; }
-  clientData = cData;
+  console.log("Запуск загрузки карточки. ID из URL:", clientId);
 
-  // Заметки
-  const { data: nData } = await supabase.from('client_notes').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
-  notesData = nData || [];
+  if (!clientId) {
+    container.innerHTML = `<div class="card col-12 text-danger" style="padding: 20px;"><h3>Ошибка</h3><p>ID клиента не передан в ссылке. Вернитесь в список клиентов и попробуйте снова.</p></div>`;
+    return;
+  }
 
-  renderClient();
+  try {
+    // 1. Загружаем клиента
+    const { data: cData, error: cError } = await supabase.from('clients').select('*').eq('id', clientId).single();
+    
+    if (cError) {
+      throw new Error(`Ошибка базы данных: ${cError.message} (Код: ${cError.code})`);
+    }
+    
+    clientData = cData;
+    console.log("Данные клиента успешно загружены:", clientData);
+
+    // 2. Загружаем заметки
+    const { data: nData, error: nError } = await supabase.from('client_notes').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
+    
+    if (nError) {
+      console.warn("Не удалось загрузить заметки:", nError.message);
+      notesData = []; // Если заметки не загрузились, просто пустой список, карточка не падает
+    } else {
+      notesData = nData || [];
+    }
+
+    // 3. Отрисовываем
+    renderClient();
+
+  } catch (error) {
+    console.error("Критическая ошибка загрузки карточки:", error);
+    container.innerHTML = `
+      <div class="card col-12" style="border-left: 4px solid var(--danger);">
+        <h3 class="text-danger mb-2"><i class="fa-solid fa-triangle-exclamation"></i> Не удалось загрузить карточку</h3>
+        <p class="text-main">${error.message}</p>
+        <p class="text-muted text-sm mt-2">Проверьте консоль браузера (F12) для подробностей.</p>
+        <a href="clients.html" class="btn btn-outline mt-4">Вернуться к списку</a>
+      </div>
+    `;
+  }
 }
 
 // --- ОБРАБОТЧИКИ КНОПОК ---
-document.getElementById('btn-edit').addEventListener('click', () => {
-  isEditMode = true;
-  document.getElementById('btn-edit').style.display = 'none';
-  document.getElementById('btn-save').style.display = 'inline-flex';
-  document.getElementById('btn-cancel').style.display = 'inline-flex';
-  renderClient();
-});
+const btnEdit = document.getElementById('btn-edit');
+const btnSave = document.getElementById('btn-save');
+const btnCancel = document.getElementById('btn-cancel');
 
-document.getElementById('btn-cancel').addEventListener('click', () => {
-  isEditMode = false;
-  document.getElementById('btn-edit').style.display = 'inline-flex';
-  document.getElementById('btn-save').style.display = 'none';
-  document.getElementById('btn-cancel').style.display = 'none';
-  renderClient();
-});
-
-document.getElementById('btn-save').addEventListener('click', async () => {
-  const btn = document.getElementById('btn-save');
-  btn.disabled = true; btn.innerHTML = 'Сохранение...';
-
-  const fields = ['kind', 'short_name', 'full_name', 'inn', 'kpp', 'ogrn', 'director_role', 'director_name', 'director_birthday', 'director_phone', 'email_1c', 'email_work', 'registration_date', 'registration_authority', 'tax_type', 'bank_bik', 'account_number', 'legal_address', 'actual_address', 'tax_office', 'okopf', 'okfs', 'okved', 'edo_astral', 'edo_sbis', 'salary_day', 'advance_day', 'work_start_date'];
-  
-  const updates = {};
-  fields.forEach(f => {
-    const el = document.getElementById('edit-' + f);
-    if (el) updates[f] = el.value || null;
-  });
-
-  const { error } = await supabase.from('clients').update(updates).eq('id', clientId);
-  
-  if (error) {
-    alert('Ошибка: ' + error.message);
-  } else {
-    clientData = { ...clientData, ...updates };
-    isEditMode = false;
-    document.getElementById('btn-edit').style.display = 'inline-flex';
-    document.getElementById('btn-save').style.display = 'none';
-    document.getElementById('btn-cancel').style.display = 'none';
+if (btnEdit) {
+  btnEdit.addEventListener('click', () => {
+    isEditMode = true;
+    btnEdit.style.display = 'none';
+    btnSave.style.display = 'inline-flex';
+    btnCancel.style.display = 'inline-flex';
     renderClient();
-  }
-  btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Сохранить';
-});
-
-// Сохранение заметки
-document.getElementById('btn-save-note').addEventListener('click', async () => {
-  const text = document.getElementById('note-text').value.trim();
-  const date = document.getElementById('note-date').value || null;
-
-  if (!text) { alert('Введите текст заметки!'); return; }
-
-  const { data: { user } } = await supabase.auth.getUser();
-
-  const { error } = await supabase.from('client_notes').insert({
-    client_id: clientId,
-    text: text,
-    event_date: date,
-    created_by: user.id
   });
+}
 
-  if (error) {
-    alert('Ошибка сохранения заметки: ' + error.message);
-  } else {
-    document.getElementById('note-text').value = '';
-    document.getElementById('note-date').value = '';
-    document.getElementById('note-modal').classList.remove('active');
-    loadData(); // Перезагружаем
-  }
-});
+if (btnCancel) {
+  btnCancel.addEventListener('click', () => {
+    isEditMode = false;
+    btnEdit.style.display = 'inline-flex';
+    btnSave.style.display = 'none';
+    btnCancel.style.display = 'none';
+    renderClient();
+  });
+}
+
+if (btnSave) {
+  btnSave.addEventListener('click', async () => {
+    btnSave.disabled = true; btnSave.innerHTML = 'Сохранение...';
+
+    const fields = ['kind', 'short_name', 'full_name', 'inn', 'kpp', 'ogrn', 'director_role', 'director_name', 'director_birthday', 'director_phone', 'email_1c', 'email_work', 'registration_date', 'registration_authority', 'tax_type', 'bank_bik', 'account_number', 'legal_address', 'actual_address', 'tax_office', 'okopf', 'okfs', 'okved', 'edo_astral', 'edo_sbis', 'salary_day', 'advance_day', 'work_start_date'];
+    
+    const updates = {};
+    fields.forEach(f => {
+      const el = document.getElementById('edit-' + f);
+      if (el) updates[f] = el.value || null;
+    });
+
+    const { error } = await supabase.from('clients').update(updates).eq('id', clientId);
+    
+    if (error) {
+      alert('Ошибка сохранения: ' + error.message);
+    } else {
+      clientData = { ...clientData, ...updates };
+      isEditMode = false;
+      btnEdit.style.display = 'inline-flex';
+      btnSave.style.display = 'none';
+      btnCancel.style.display = 'none';
+      renderClient();
+    }
+    btnSave.disabled = false; btnSave.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Сохранить';
+  });
+}
+
+const btnSaveNote = document.getElementById('btn-save-note');
+if (btnSaveNote) {
+  btnSaveNote.addEventListener('click', async () => {
+    const text = document.getElementById('note-text').value.trim();
+    const date = document.getElementById('note-date').value || null;
+
+    if (!text) { alert('Введите текст заметки!'); return; }
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from('client_notes').insert({
+      client_id: clientId,
+      text: text,
+      event_date: date,
+      created_by: user.id
+    });
+
+    if (error) {
+      alert('Ошибка сохранения заметки: ' + error.message);
+    } else {
+      document.getElementById('note-text').value = '';
+      document.getElementById('note-date').value = '';
+      document.getElementById('note-modal').classList.remove('active');
+      loadData(); 
+    }
+  });
+}
 
 window.copyText = (text, btn) => copyToClipboard(text, btn);
 
