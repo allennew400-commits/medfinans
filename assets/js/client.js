@@ -10,7 +10,6 @@ let notesData = [];
 
 const container = document.getElementById('client-data-container');
 
-// Безопасное экранирование кавычек для передачи в onclick
 function escapeQuotes(str) {
   return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 }
@@ -30,7 +29,6 @@ function renderClient() {
       if (isTextarea) {
         return `<textarea class="form-control" id="edit-${key}" rows="2">${value}</textarea>`;
       }
-      // Для дат в режиме редактирования возвращаем формат YYYY-MM-DD
       let inputValue = value;
       if (isDate && value && typeof value === 'string' && value.includes('.')) {
         inputValue = value.split('.').reverse().join('-');
@@ -90,7 +88,7 @@ function renderClient() {
       <div class="info-row"><span class="info-label">Дата аванса</span><span class="info-value">${field('advance_day', false, false, true, ['5','10','15','20','25','30'])}</span></div>
     </div>
 
-    <div class="info-block" style="grid-column: span 2;">
+    <div class="info-block">
       <div class="info-block-title"><i class="fa-solid fa-paperclip"></i> Файлы и Заметки</div>
       <div class="d-flex gap-4 mb-4 flex-wrap">
         <a href="${clientData.requisites_file_url || '#'}" target="_blank" class="btn btn-outline ${!clientData.requisites_file_url ? 'disabled' : ''}"><i class="fa-solid fa-file-pdf"></i> Реквизиты</a>
@@ -132,39 +130,27 @@ function renderNotes() {
 
 // --- ЗАГРУЗКА ДАННЫХ ---
 async function loadData() {
-  console.log("Запуск загрузки карточки. ID из URL:", clientId);
-
   if (!clientId) {
-    container.innerHTML = `<div class="card col-12 text-danger" style="padding: 20px;"><h3>Ошибка</h3><p>ID клиента не передан в ссылке. Вернитесь в список клиентов и попробуйте снова.</p></div>`;
+    container.innerHTML = `<div class="card col-12 text-danger" style="padding: 20px;"><h3>Ошибка</h3><p>ID клиента не передан в ссылке.</p></div>`;
     return;
   }
 
   try {
     const { data: cData, error: cError } = await supabase.from('clients').select('*').eq('id', clientId).single();
-    
-    if (cError) {
-      throw new Error(`Ошибка базы данных: ${cError.message} (Код: ${cError.code})`);
-    }
+    if (cError) throw new Error(`Ошибка базы данных: ${cError.message}`);
     
     clientData = cData;
-    console.log("Данные клиента успешно загружены:", clientData);
 
     const { data: nData, error: nError } = await supabase.from('client_notes').select('*').eq('client_id', clientId).order('created_at', { ascending: false });
-    
-    if (nError) {
-      console.warn("Не удалось загрузить заметки:", nError.message);
-      notesData = [];
-    } else {
-      notesData = nData || [];
-    }
+    notesData = nError ? [] : (nData || []);
 
     renderClient();
 
   } catch (error) {
-    console.error("Критическая ошибка загрузки карточки:", error);
+    console.error("Ошибка загрузки:", error);
     container.innerHTML = `
       <div class="card col-12" style="border-left: 4px solid var(--danger);">
-        <h3 class="text-danger mb-2"><i class="fa-solid fa-triangle-exclamation"></i> Не удалось загрузить карточку</h3>
+        <h3 class="text-danger mb-2">Не удалось загрузить карточку</h3>
         <p class="text-main">${error.message}</p>
         <a href="clients.html" class="btn btn-outline mt-4">Вернуться к списку</a>
       </div>
@@ -255,5 +241,4 @@ if (btnSaveNote) {
 
 window.copyText = (text, btn) => copyToClipboard(text, btn);
 
-// Запуск
 loadData();
