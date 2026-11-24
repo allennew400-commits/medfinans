@@ -1279,3 +1279,99 @@ td .form-control { padding: 8px 12px; font-size: 0.9rem; }
     padding: 8px 12px;
   }
 }
+/* =========================================
+   НОВЫЙ СТИЛЬ КАРТОЧКИ КЛИЕНТА (ПОДПИСЬ СВЕРХУ, ЗНАЧЕНИЕ СПРАВА)
+   ========================================= */
+
+/* Сама строка теперь колонка */
+.info-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 14px 0;
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px dashed rgba(99, 102, 241, 0.2); /* Пунктирная линия для разделения */
+  border-radius: 0;
+  margin-bottom: 0;
+  transition: background-color 0.2s ease;
+}
+
+.info-row:hover {
+  background-color: rgba(99, 102, 241, 0.02); /* Легкая подсветка строки */
+}
+
+.info-row:last-child {
+  border-bottom: none;
+}
+
+/* Подпись сверху — мелкая и серая */
+.info-label {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  flex: none;
+  padding: 0;
+}
+
+/* Значение снизу — в виде "таблетки", прижатой вправо */
+.info-value {
+  align-self: flex-end; /* Прижимаем к правому краю */
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  text-align: right;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-main);
+  word-break: break-word;
+  max-width: 100%;
+  
+  /* Стиль "таблетки" */
+  background-color: var(--bg-surface);
+  padding: 8px 16px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+/* Подсветка таблетки при наведении на строку */
+.info-row:hover .info-value {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 2px 6px rgba(99, 102, 241, 0.08);
+}
+
+/* Если значение пустое (прочерк) */
+.info-value .text-muted {
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+/* Кнопка копирования */
+.info-value .copy-btn {
+  margin-left: 4px;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.info-row:hover .copy-btn {
+  opacity: 1;
+}
+
+/* Адаптив для мобильных: чтобы таблетка не убегала за экран */
+@media (max-width: 768px) {
+  .info-value {
+    align-self: stretch; /* На мобильных растягиваем на всю ширину */
+    text-align: left;
+    justify-content: flex-start;
+    background-color: rgba(99, 102, 241, 0.04);
+    border-color: transparent;
+    box-shadow: none;
+    padding: 10px 12px;
+  }
+}
